@@ -129,6 +129,25 @@
   .btn-action:hover{
     opacity: 0.9;
   }
+  .btn-download{
+    background:var(--good);
+    color:#0d0f13;
+    border:none;
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600;
+    font-size:13px;
+    padding:10px 20px;
+    border-radius:8px;
+    cursor:pointer;
+    margin-top:12px;
+    transition: opacity 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-download:hover{
+    opacity: 0.9;
+  }
 
   /* log panel */
   .log{
@@ -286,6 +305,7 @@
 
       <div id="cleaningResults" class="hidden">
         <div class="log" id="log"></div>
+        <button id="downloadCleanBtn" class="btn-download">↓ Télécharger le CSV nettoyé</button>
         <div class="stat-row" id="statRow"></div>
       </div>
     </div>
@@ -437,6 +457,25 @@ document.getElementById('runCleanBtn').addEventListener('click', () => {
     return;
   }
   processCSVText(loadedCSVText);
+});
+
+// ---------- download functionality ----------
+document.getElementById('downloadCleanBtn').addEventListener('click', () => {
+  if (!cleanRows || cleanRows.length === 0) return;
+  
+  // Utilisation de PapaParse pour recréer proprement le fichier CSV
+  const csvContent = Papa.unparse(cleanRows);
+  
+  // Création du fichier temporaire pour le téléchargement
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", "donnees_nettoyees.csv");
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 });
 
 // ---------- parsing + cleaning configurable ----------
@@ -921,9 +960,9 @@ function renderChart(){
     const means = labels.map(k=>groups[k].reduce((a,b)=>a+b,0)/groups[k].length);
     chartInstance = new Chart(ctx, {type:'bar', data:{labels,
       datasets:[
-        {label:'Min', data:mins, backgroundColor:'#2B2F3A'},
-        {label:'Moyenne', data:means, backgroundColor:'#5B8DEF'},
-        {label:'Max', data:maxs, backgroundColor:'#E8A33D55'}
+        {label='Min', data:mins, backgroundColor:'#2B2F3A'},
+        {label='Moyenne', data:means, backgroundColor:'#5B8DEF'},
+        {label='Max', data:maxs, backgroundColor:'#E8A33D55'}
       ]}, options:{...baseOpts(catCol.name, numCol.name)}});
   }
   else if(chartType==='line_time'){
