@@ -7,8 +7,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/date-fns@3.6.0/cdn.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/date-fns/3.6.0/cdn.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-adapter-date-fns/3.0.0/chartjs-adapter-date-fns.min.js"></script>
 
 <style>
   :root{
@@ -159,6 +159,10 @@
 
   .hidden{display:none !important;}
   #fileMeta{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-dim); margin-top:10px; text-align:center;}
+  #errorBanner{
+    margin-top:14px; padding:12px 14px; background:rgba(232,90,90,.12); border:1px solid rgba(232,90,90,.4);
+    border-radius:8px; font-size:12.5px; color:#F0A0A0; font-family:'JetBrains Mono',monospace; line-height:1.6;
+  }
 </style>
 </head>
 <body>
@@ -178,6 +182,7 @@
     <button class="sample-btn" id="sampleBtn" type="button">ou charger un jeu de données d'exemple</button>
   </div>
   <div id="fileMeta"></div>
+  <div id="errorBanner" class="hidden"></div>
 
   <div id="app" class="hidden">
 
@@ -216,6 +221,28 @@
 </div>
 
 <script>
+// ---------- error handling ----------
+function showError(msg){
+  const el = document.getElementById('errorBanner');
+  el.textContent = '⚠ ' + msg;
+  el.classList.remove('hidden');
+}
+function clearError(){
+  const el = document.getElementById('errorBanner');
+  el.classList.add('hidden');
+  el.textContent = '';
+}
+window.addEventListener('error', e=>{
+  showError("Erreur JavaScript : " + e.message + " (vérifiez que les librairies externes ont bien chargé — console F12 pour plus de détails)");
+});
+window.addEventListener('DOMContentLoaded', ()=>{
+  if(typeof Papa === 'undefined'){
+    showError("La librairie PapaParse n'a pas pu être chargée (CDN bloqué ou pas de connexion internet). L'import de CSV ne fonctionnera pas.");
+  } else if(typeof Chart === 'undefined'){
+    showError("La librairie Chart.js n'a pas pu être chargée (CDN bloqué ou pas de connexion internet). Les graphiques ne fonctionneront pas.");
+  }
+});
+
 // ---------- state ----------
 let rawRows = [];
 let columns = [];      // {name, type, values(raw), clean(array), stats}
@@ -239,15 +266,34 @@ dropZone.addEventListener('drop', e=>{
 fileInput.addEventListener('change', e=>{ if(e.target.files.length) handleFile(e.target.files[0]); });
 
 document.getElementById('sampleBtn').addEventListener('click', ()=>{
-  const sample = generateSampleCSV();
-  fileMeta.textContent = "Jeu de données d'exemple chargé";
-  processCSVText(sample);
+  clearError();
+  try{
+    const sample = generateSampleCSV();
+    fileMeta.textContent = "Jeu de données d'exemple chargé";
+    processCSVText(sample);
+  }catch(err){
+    console.error(err);
+    showError("Erreur lors du chargement de l'exemple : " + err.message);
+  }
 });
 
 function handleFile(file){
+  clearError();
+  if(typeof Papa === 'undefined'){
+    showError("Impossible de lire le fichier : la librairie PapaParse n'est pas chargée (vérifiez votre connexion internet ou un bloqueur de script).");
+    return;
+  }
   fileMeta.textContent = file.name + ' · ' + (file.size/1024).toFixed(1) + ' Ko';
   const reader = new FileReader();
-  reader.onload = e => processCSVText(e.target.result);
+  reader.onload = e => {
+    try{
+      processCSVText(e.target.result);
+    }catch(err){
+      console.error(err);
+      showError("Le fichier n'a pas pu être analysé : " + err.message);
+    }
+  };
+  reader.onerror = () => showError("Impossible de lire ce fichier (erreur de lecture).");
   reader.readAsText(file);
 }
 
@@ -271,9 +317,21 @@ function generateSampleCSV(){
 
 // ---------- parsing + cleaning ----------
 function processCSVText(text){
-  const parsed = Papa.parse(text.trim(), {header:true, skipEmptyLines:'greedy'});
+  const trimmed = text.trim();
+  if(!trimmed){
+    showError("Le fichier semble vide.");
+    return;
+  }
+  const parsed = Papa.parse(trimmed, {header:true, skipEmptyLines:'greedy', delimitersToGuess:[',',';','\t','|']});
+  if(parsed.errors && parsed.errors.length){
+    console.warn('Avertissements de parsing CSV :', parsed.errors);
+  }
   rawRows = parsed.data;
   const originalCols = parsed.meta.fields || [];
+  if(!originalCols.length || !rawRows.length){
+    showError("Aucune colonne ou ligne exploitable n'a été détectée dans ce fichier. Vérifiez qu'il s'agit bien d'un CSV avec une ligne d'en-tête.");
+    return;
+  }
   const log = [];
 
   // 1. trim header names, drop fully-empty columns
