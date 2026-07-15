@@ -5,10 +5,10 @@
 <title>Banc d'analyse — Explorateur de données</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/date-fns/3.6.0/cdn.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-adapter-date-fns/3.0.0/chartjs-adapter-date-fns.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/date-fns/3.6.0/cdn.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-adapter-date-fns/3.0.0/chartjs-adapter-date-fns.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
 <style>
   :root{
@@ -76,6 +76,59 @@
   }
   .section-title .num{color:var(--accent);}
   .section-title::after{content:"";flex:1;height:1px;background:var(--border);}
+
+  /* Clean configuration panel */
+  .clean-config{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:18px;
+    margin-bottom:16px;
+  }
+  .clean-config-title{
+    font-size:13px;
+    font-weight:600;
+    margin-bottom:12px;
+    color:var(--text);
+  }
+  .clean-options{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap:12px;
+    margin-bottom:16px;
+  }
+  .clean-opt{
+    display: flex;
+    align-items: flex-start;
+    gap:10px;
+    font-size:12.5px;
+    color:var(--text-dim);
+    cursor:pointer;
+    user-select: none;
+  }
+  .clean-opt input[type="checkbox"]{
+    margin-top: 2px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .clean-opt:hover{
+    color:var(--text);
+  }
+  .btn-action{
+    background:var(--accent);
+    color:#0d0f13;
+    border:none;
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600;
+    font-size:13px;
+    padding:10px 20px;
+    border-radius:8px;
+    cursor:pointer;
+    transition: opacity 0.15s;
+  }
+  .btn-action:hover{
+    opacity: 0.9;
+  }
 
   /* log panel */
   .log{
@@ -176,7 +229,7 @@
     <input type="file" id="fileInput" accept=".csv,.tsv,text/csv">
     <div class="icon">↑</div>
     <div class="main">Déposez un fichier CSV ici, ou cliquez pour choisir</div>
-    <div class="sub">Le nettoyage (types, espaces, doublons, valeurs manquantes) est automatique</div>
+    <div class="sub">Importez un fichier puis configurez vos options de nettoyage personnalisées</div>
   </div>
   <div style="text-align:center;">
     <button class="sample-btn" id="sampleBtn" type="button">ou charger un jeu de données d'exemple</button>
@@ -187,33 +240,80 @@
   <div id="app" class="hidden">
 
     <div class="section">
-      <div class="section-title"><span class="num">01</span> Journal de nettoyage</div>
-      <div class="log" id="log"></div>
-      <div class="stat-row" id="statRow"></div>
-    </div>
-
-    <div class="section">
-      <div class="section-title"><span class="num">02</span> Variables détectées</div>
-      <div class="var-grid" id="varGrid"></div>
-    </div>
-
-    <div class="section">
-      <div class="section-title"><span class="num">03</span> Relation entre deux variables</div>
-      <div class="explorer">
-        <div class="exp-controls">
-          <div class="field">
-            <label>Variable A</label>
-            <select id="varA"></select>
-          </div>
-          <button class="swap-btn" id="swapBtn" title="Inverser">⇄</button>
-          <div class="field">
-            <label>Variable B</label>
-            <select id="varB"></select>
-          </div>
+      <div class="section-title"><span class="num">01</span> Configuration du nettoyage</div>
+      
+      <div class="clean-config">
+        <div class="clean-config-title">Sélectionnez les opérations à appliquer :</div>
+        <div class="clean-options">
+          <label class="clean-opt">
+            <input type="checkbox" id="optTrimHeaders" checked>
+            <div>
+              <strong>Nettoyer les en-têtes</strong><br>
+              <small style="color:var(--text-dim);">Retirer les espaces autour des noms de colonnes</small>
+            </div>
+          </label>
+          <label class="clean-opt">
+            <input type="checkbox" id="optRemoveEmptyCols" checked>
+            <div>
+              <strong>Supprimer colonnes vides</strong><br>
+              <small style="color:var(--text-dim);">Éliminer les colonnes qui ne contiennent aucune donnée</small>
+            </div>
+          </label>
+          <label class="clean-opt">
+            <input type="checkbox" id="optRemoveEmptyRows" checked>
+            <div>
+              <strong>Supprimer lignes vides</strong><br>
+              <small style="color:var(--text-dim);">Retirer les enregistrements totalement vides</small>
+            </div>
+          </label>
+          <label class="clean-opt">
+            <input type="checkbox" id="optRemoveDupes" checked>
+            <div>
+              <strong>Supprimer les doublons</strong><br>
+              <small style="color:var(--text-dim);">Éliminer les lignes strictement identiques</small>
+            </div>
+          </label>
+          <label class="clean-opt">
+            <input type="checkbox" id="optTrimCells" checked>
+            <div>
+              <strong>Nettoyer les cellules texte</strong><br>
+              <small style="color:var(--text-dim);">Enlever les espaces inutiles au début et à la fin</small>
+            </div>
+          </label>
         </div>
-        <div class="chart-tabs" id="chartTabs"></div>
-        <div class="chart-area" id="chartArea"></div>
-        <div class="insight" id="insight"></div>
+        <button id="runCleanBtn" class="btn-action">Lancer le nettoyage et l'analyse</button>
+      </div>
+
+      <div id="cleaningResults" class="hidden">
+        <div class="log" id="log"></div>
+        <div class="stat-row" id="statRow"></div>
+      </div>
+    </div>
+
+    <div id="analysisSections" class="hidden">
+      <div class="section">
+        <div class="section-title"><span class="num">02</span> Variables détectées</div>
+        <div class="var-grid" id="varGrid"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title"><span class="num">03</span> Relation entre deux variables</div>
+        <div class="explorer">
+          <div class="exp-controls">
+            <div class="field">
+              <label>Variable A</label>
+              <select id="varA"></select>
+            </div>
+            <button class="swap-btn" id="swapBtn" title="Inverser">⇄</button>
+            <div class="field">
+              <label>Variable B</label>
+              <select id="varB"></select>
+            </div>
+          </div>
+          <div class="chart-tabs" id="chartTabs"></div>
+          <div class="chart-area" id="chartArea"></div>
+          <div class="insight" id="insight"></div>
+        </div>
       </div>
     </div>
 
@@ -244,6 +344,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
 });
 
 // ---------- state ----------
+let loadedCSVText = ""; // Sauvegarde du contenu brut chargé
 let rawRows = [];
 let columns = [];      // {name, type, values(raw), clean(array), stats}
 let cleanRows = [];
@@ -270,13 +371,16 @@ document.getElementById('sampleBtn').addEventListener('click', ()=>{
   try{
     const sample = generateSampleCSV();
     fileMeta.textContent = "Jeu de données d'exemple chargé";
-    processCSVText(sample);
+    loadedCSVText = sample;
+    // On affiche l'app (la config du nettoyage) mais on ne lance pas l'analyse
+    resetInterfaceForNewFile();
   }catch(err){
     console.error(err);
     showError("Erreur lors du chargement de l'exemple : " + err.message);
   }
 });
 
+// ---------- file parsing ----------
 function handleFile(file){
   clearError();
   if(typeof Papa === 'undefined'){
@@ -287,7 +391,8 @@ function handleFile(file){
   const reader = new FileReader();
   reader.onload = e => {
     try{
-      processCSVText(e.target.result);
+      loadedCSVText = e.target.result;
+      resetInterfaceForNewFile();
     }catch(err){
       console.error(err);
       showError("Le fichier n'a pas pu être analysé : " + err.message);
@@ -312,16 +417,43 @@ function generateSampleCSV(){
     const missing = Math.random() < 0.05 ? '' : revenu;
     rows.push([age, ville, seg, missing, anciennete, satisfaction].join(','));
   }
+  // Injection de quelques doublons et lignes vides volontaires pour tester le nettoyage configurable
+  rows.push(",,,,,"); // Ligne vide
+  rows.push("30,Lyon,Particulier,2500,12,6"); // Ligne 1
+  rows.push("30,Lyon,Particulier,2500,12,6"); // Doublon de la ligne 1
   return rows.join(String.fromCharCode(10));
 }
 
-// ---------- parsing + cleaning ----------
+function resetInterfaceForNewFile() {
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('cleaningResults').classList.add('hidden');
+  document.getElementById('analysisSections').classList.add('hidden');
+}
+
+// Déclencheur manuel du nettoyage choisi
+document.getElementById('runCleanBtn').addEventListener('click', () => {
+  if(!loadedCSVText) {
+    showError("Veuillez d'abord charger un fichier CSV.");
+    return;
+  }
+  processCSVText(loadedCSVText);
+});
+
+// ---------- parsing + cleaning configurable ----------
 function processCSVText(text){
   const trimmed = text.trim();
   if(!trimmed){
     showError("Le fichier semble vide.");
     return;
   }
+  
+  // Récupération des choix utilisateur
+  const cleanHeaders = document.getElementById('optTrimHeaders').checked;
+  const removeEmptyCols = document.getElementById('optRemoveEmptyCols').checked;
+  const removeEmptyRows = document.getElementById('optRemoveEmptyRows').checked;
+  const removeDupes = document.getElementById('optRemoveDupes').checked;
+  const trimCells = document.getElementById('optTrimCells').checked;
+
   const parsed = Papa.parse(trimmed, {header:true, skipEmptyLines:'greedy', delimitersToGuess:[',',';','\t','|']});
   if(parsed.errors && parsed.errors.length){
     console.warn('Avertissements de parsing CSV :', parsed.errors);
@@ -334,49 +466,72 @@ function processCSVText(text){
   }
   const log = [];
 
-  // 1. trim header names, drop fully-empty columns
-  let colNames = originalCols.map(c=>c.trim());
+  // 1. Gestion des noms d'en-têtes
+  let colNames = originalCols;
+  if (cleanHeaders) {
+    colNames = originalCols.map(c=>c.trim());
+    log.push({text:`Espaces nettoyés sur les en-têtes de colonnes`, kind:'good'});
+  }
   const dupHeaderCount = originalCols.length - new Set(colNames).size;
 
-  // build raw column value arrays
+  // Récupération des valeurs d'origine
   let colValues = {};
   colNames.forEach((c,i)=>{ colValues[c] = rawRows.map(r=>{
     let v = r[originalCols[i]];
     if(v===undefined || v===null) return '';
-    if(typeof v === 'string') v = v.trim();
+    // Option trim des cellules texte
+    if(typeof v === 'string' && trimCells) v = v.trim();
     return v;
   });});
 
-  // drop columns fully empty
-  const emptyCols = colNames.filter(c => colValues[c].every(v=>v===''));
-  emptyCols.forEach(c=>{ delete colValues[c]; });
-  colNames = colNames.filter(c=>!emptyCols.includes(c));
+  if (trimCells) {
+    log.push({text:`Espaces superflus retirés sur toutes les cellules texte`, kind:'good'});
+  }
 
-  // 2. drop rows fully empty across kept columns
+  // Suppression des colonnes vides facultative
+  let emptyCols = [];
+  if (removeEmptyCols) {
+    emptyCols = colNames.filter(c => colValues[c].every(v=>v===''));
+    emptyCols.forEach(c=>{ delete colValues[c]; });
+    colNames = colNames.filter(c=>!emptyCols.includes(c));
+  }
+
+  // 2. Suppression des lignes vides facultative
   const nRowsBefore = rawRows.length;
-  const keepRowIdx = [];
+  let keepRowIdx = [];
   for(let i=0;i<nRowsBefore;i++){
     const allEmpty = colNames.every(c => colValues[c][i]==='');
-    if(!allEmpty) keepRowIdx.push(i);
+    if (removeEmptyRows) {
+      if(!allEmpty) keepRowIdx.push(i);
+    } else {
+      keepRowIdx.push(i); // On garde tout
+    }
   }
   colNames.forEach(c=>{ colValues[c] = keepRowIdx.map(i=>colValues[c][i]); });
   const emptyRowsRemoved = nRowsBefore - keepRowIdx.length;
 
-  // 3. detect duplicate rows (exact match across all columns), remove
+  // 3. Suppression des doublons facultative
   const rowCount = keepRowIdx.length;
-  const rowKeys = [];
-  for(let i=0;i<rowCount;i++){
-    rowKeys.push(colNames.map(c=>colValues[c][i]).join('␟'));
+  let duplicatesRemoved = 0;
+  if (removeDupes) {
+    const rowKeys = [];
+    for(let i=0;i<rowCount;i++){
+      rowKeys.push(colNames.map(c=>colValues[c][i]).join('␟'));
+    }
+    const seen = new Set();
+    const dupIdx = new Set();
+    rowKeys.forEach((k,i)=>{ if(seen.has(k)) dupIdx.add(i); else seen.add(k); });
+    const finalRowIdx = [];
+    for(let i=0;i<rowCount;i++) if(!dupIdx.has(i)) finalRowIdx.push(i);
+    colNames.forEach(c=>{ colValues[c] = finalRowIdx.map(i=>colValues[c][i]); });
+    duplicatesRemoved = dupIdx.size;
+  } else {
+    // Si pas de déduplication, on prend toutes les lignes indexées restantes
+    const finalRowIdx = Array.from({length: rowCount}, (_, i) => i);
+    colNames.forEach(c=>{ colValues[c] = finalRowIdx.map(i=>colValues[c][i]); });
   }
-  const seen = new Set();
-  const dupIdx = new Set();
-  rowKeys.forEach((k,i)=>{ if(seen.has(k)) dupIdx.add(i); else seen.add(k); });
-  const finalRowIdx = [];
-  for(let i=0;i<rowCount;i++) if(!dupIdx.has(i)) finalRowIdx.push(i);
-  colNames.forEach(c=>{ colValues[c] = finalRowIdx.map(i=>colValues[c][i]); });
-  const duplicatesRemoved = dupIdx.size;
 
-  // 4. detect type per column + convert
+  // 4. Détecter type de colonnes
   columns = colNames.map(name=>{
     const rawVals = colValues[name];
     const nonEmpty = rawVals.filter(v=>v!=='');
@@ -426,33 +581,36 @@ function processCSVText(text){
     }
   });
 
-  cleanRows = finalRowIdx.map((_,i)=>{
+  cleanRows = Array.from({length: colValues[colNames[0]].length}).map((_,i)=>{
     let r = {};
     columns.forEach(c=> r[c.name] = c.clean[i]);
     return r;
   });
 
-  // build log
+  // build logs
   log.push({text:`${nRowsBefore} lignes lues, ${originalCols.length} colonnes détectées`, kind:'n'});
   if(emptyCols.length) log.push({text:`${emptyCols.length} colonne(s) entièrement vide(s) supprimée(s) : ${emptyCols.join(', ')}`, kind:'warn'});
   if(dupHeaderCount>0) log.push({text:`${dupHeaderCount} en-tête(s) en double détecté(s)`, kind:'warn'});
   if(emptyRowsRemoved) log.push({text:`${emptyRowsRemoved} ligne(s) entièrement vide(s) supprimée(s)`, kind:'warn'});
   if(duplicatesRemoved) log.push({text:`${duplicatesRemoved} ligne(s) en double supprimée(s)`, kind:'warn'});
-  log.push({text:`Espaces superflus retirés sur toutes les cellules texte`, kind:'good'});
+  
   columns.forEach(c=>{
     if(c.missing>0){
-      log.push({text:`« ${c.name} » : ${c.missing} valeur(s) manquante(s) conservée(s) (exclues des statistiques)`, kind:'warn'});
+      log.push({text:`« ${c.name} » : ${c.missing} valeur(s) manquante(s) (exclues des statistiques)`, kind:'warn'});
     }
   });
   log.push({text:`Types détectés automatiquement : ${columns.filter(c=>c.type==='numeric').length} numérique(s), ${columns.filter(c=>c.type==='categorical').length} catégorielle(s), ${columns.filter(c=>c.type==='date').length} date(s)`, kind:'good'});
   log.push({text:`${cleanRows.length} lignes propres × ${columns.length} colonnes prêtes à l'analyse`, kind:'good'});
 
+  // Rendu de l'interface après nettoyage réussi
   renderLog(log);
   renderStatRow(nRowsBefore, cleanRows.length, columns.length, emptyRowsRemoved+duplicatesRemoved);
   renderVarGrid();
   renderSelectors();
 
-  document.getElementById('app').classList.remove('hidden');
+  // Affichage des blocs de résultats
+  document.getElementById('cleaningResults').classList.remove('hidden');
+  document.getElementById('analysisSections').classList.remove('hidden');
 }
 
 function isDateLike(v){
@@ -628,11 +786,11 @@ function getCol(name){ return columns.find(c=>c.name===name); }
 function onSelectionChange(){
   const valA = document.getElementById('varA').value;
   const valB = document.getElementById('varB').value;
-  if(!valA || !valB) return; // Sécurité anti-crash si aucun fichier n'est chargé
+  if(!valA || !valB) return; 
   
   selA = getCol(valA);
   selB = getCol(valB);
-  if(!selA || !selB) return; // Sécurité anti-crash additionnelle
+  if(!selA || !selB) return; 
 
   const options = chartOptionsFor(selA, selB);
   if(!options || !options.length) return;
