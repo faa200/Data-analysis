@@ -168,12 +168,12 @@
     <div class="tag">nettoyage · variables · relations</div>
   </div>
 
-  <label class="drop" id="dropZone">
+  <div class="drop" id="dropZone">
     <input type="file" id="fileInput" accept=".csv,.tsv,text/csv">
     <div class="icon">↑</div>
     <div class="main">Déposez un fichier CSV ici, ou cliquez pour choisir</div>
     <div class="sub">Le nettoyage (types, espaces, doublons, valeurs manquantes) est automatique</div>
-  </label>
+  </div>
   <div style="text-align:center;">
     <button class="sample-btn" id="sampleBtn" type="button">ou charger un jeu de données d'exemple</button>
   </div>
@@ -420,8 +420,6 @@ function parseFrenchDate(v) {
 function renderLog(entries){
   const el = document.getElementById('log');
   el.innerHTML = entries.map(e=>{
-    const cls = e.kind==='good' ? '<b>' : (e.kind==='warn' ? '<span style="color:var(--warn)">' : '<span class="n">');
-    const clsEnd = e.kind==='good' ? '</b>' : '</span>';
     return `<div class="line">› ${e.text}</div>`;
   }).join('');
 }
@@ -547,8 +545,8 @@ function renderSelectors(){
   const b = document.getElementById('varB');
   a.innerHTML = columns.map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
   updateVarB();
-  a.value = columns[0]?.name;
-  b.value = columns[1] ? columns[1].name : columns[0]?.name;
+  a.value = columns[0]?.name || '';
+  b.value = columns[1] ? columns[1].name : (columns[0]?.name || '');
   a.addEventListener('change', ()=>{ updateVarB(); onSelectionChange(); });
   b.addEventListener('change', onSelectionChange);
   document.getElementById('swapBtn').addEventListener('click', ()=>{
@@ -570,11 +568,17 @@ function updateVarB(){
 function getCol(name){ return columns.find(c=>c.name===name); }
 
 function onSelectionChange(){
-  selA = getCol(document.getElementById('varA').value);
-  selB = getCol(document.getElementById('varB').value);
-  if(!selA || !selB) return;
+  const valA = document.getElementById('varA').value;
+  const valB = document.getElementById('varB').value;
+  if(!valA || !valB) return; // Sécurité anti-crash si aucun fichier n'est chargé
+  
+  selA = getCol(valA);
+  selB = getCol(valB);
+  if(!selA || !selB) return; // Sécurité anti-crash additionnelle
+
   const options = chartOptionsFor(selA, selB);
   if(!options || !options.length) return;
+  
   chartType = options[0].key;
   renderChartTabs(options);
   renderChart();
