@@ -50,6 +50,7 @@
     cursor:pointer;
     transition:border-color .15s ease, background .15s ease;
     background:var(--panel);
+    display:block;
   }
   .drop:hover, .drop.drag{border-color:var(--accent); background:var(--accent-soft);}
   .drop .icon{font-family:'JetBrains Mono',monospace; font-size:26px; color:var(--accent); margin-bottom:10px;}
@@ -342,7 +343,7 @@ function processCSVText(text){
 
   // stats
   columns.forEach(col=>{
-    const vals = col.clean.filter(v=>v!==null && v!==undefined && !(col.type==='date' && isNaN(v)));
+    const vals = col.clean.filter(v=>v!==null && v!==undefined && !(col.type==='date' && isNaN(v.getTime ? v.getTime() : NaN)));
     if(col.type==='numeric'){
       const sorted = [...vals].sort((a,b)=>a-b);
       const mean = vals.reduce((a,b)=>a+b,0)/(vals.length||1);
@@ -400,8 +401,6 @@ function isDateLike(v){
 function renderLog(entries){
   const el = document.getElementById('log');
   el.innerHTML = entries.map(e=>{
-    const cls = e.kind==='good' ? '<b>' : (e.kind==='warn' ? '<span style="color:var(--warn)">' : '<span class="n">');
-    const clsEnd = e.kind==='good' ? '</b>' : '</span>';
     return `<div class="line">› ${e.text}</div>`;
   }).join('');
 }
@@ -488,6 +487,7 @@ function drawMiniViz(svg, col){
       svg.appendChild(rect);
     });
   } else if(col.type==='categorical'){
+    if (!col.stats || !col.stats.top) return;
     const top = col.stats.top.slice(0,6);
     const total = top.reduce((a,b)=>a+b[1],0) || 1;
     let x = 0;
@@ -527,13 +527,24 @@ function renderSelectors(){
   const b = document.getElementById('varB');
   a.innerHTML = columns.map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
   updateVarB();
-  a.value = columns[0]?.name;
-  b.value = columns[1] ? columns[1].name : columns[0]?.name;
-  a.addEventListener('change', ()=>{ updateVarB(); onSelectionChange(); });
-  b.addEventListener('change', onSelectionChange);
+  a.value = columns[0]?.name || '';
+  b.value = columns[1] ? columns[1].name : (columns[0]?.name || '');
+  
+  // Supprimer les anciens écouteurs pour éviter les doublons
+  a.replaceWith(a.cloneNode(true));
+  b.replaceWith(b.cloneNode(true));
+  
+  const newA = document.getElementById('varA');
+  const newB = document.getElementById('varB');
+  
+  newA.addEventListener('change', ()=>{ updateVarB(); onSelectionChange(); });
+  newB.addEventListener('change', onSelectionChange);
+  
+  const swapBtn = document.getElementById('swapBtn');
+  swapBtn.replaceWith(swapBtn.cloneNode(true));
   document.getElementById('swapBtn').addEventListener('click', ()=>{
-    const va = a.value, vb = b.value;
-    a.value = vb; updateVarB(); b.value = va;
+    const va = newA.value, vb = newB.value;
+    newA.value = vb; updateVarB(); newB.value = va;
     onSelectionChange();
   });
   onSelectionChange();
@@ -550,10 +561,22 @@ function updateVarB(){
 function getCol(name){ return columns.find(c=>c.name===name); }
 
 function onSelectionChange(){
-  selA = getCol(document.getElementById('varA').value);
-  selB = getCol(document.getElementById('varB').value);
+  const valA = document.getElementById('varA').value;
+  const valB = document.getElementById('varB').value;
+  if(!valA || !valB) return;
+  
+  selA = getCol(valA);
+  selB = getCol(valB);
+  
+  if(!selA || !selB) return;
+  
   const options = chartOptionsFor(selA, selB);
-  chartType = options[0].key;
+  
+  // S'assurer que le chartType actif fait partie des options valides
+  if (!options.some(o => o.key === chartType)) {
+    chartType = options[0].key;
+  }
+  
   renderChartTabs(options);
   renderChart();
 }
@@ -571,232 +594,4 @@ function chartOptionsFor(a, b){
     if(a.type==='date'||b.type==='date') return [{key:'line_time', label:'Évolution temporelle'}];
     return [{key:'bar_mean', label:'Moyenne par catégorie'}, {key:'box_like', label:'Min / Moy / Max'}];
   }
-  if(t==='categorical-categorical') return [{key:'bar_stacked', label:'Barres empilées'}, {key:'heatmap', label:'Tableau croisé (heatmap)'}];
-  if(t==='categorical-date'||t==='date-date') return [{key:'line_time', label:'Évolution temporelle'}];
-  return [{key:'bar_stacked', label:'Barres'}];
-}
-
-function renderChartTabs(options){
-  const el = document.getElementById('chartTabs');
-  el.innerHTML = options.map(o=>`<button class="chart-tab ${o.key===chartType?'active':''}" data-key="${o.key}">${o.label}</button>`).join('');
-  el.querySelectorAll('.chart-tab').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      chartType = btn.dataset.key;
-      el.querySelectorAll('.chart-tab').forEach(x=>x.classList.remove('active'));
-      btn.classList.add('active');
-      renderChart();
-    });
-  });
-}
-
-// ---------- chart rendering ----------
-function renderChart(){
-  const area = document.getElementById('chartArea');
-  area.innerHTML = '';
-  const insight = document.getElementById('insight');
-  insight.innerHTML = '';
-
-  if(chartInstance){ chartInstance.destroy(); chartInstance = null; }
-
-  if(chartType === 'heatmap'){
-    renderHeatmap(area);
-    return;
-  }
-
-  const canvas = document.createElement('canvas');
-  area.appendChild(canvas);
-  const ctx = canvas.getContext('2d');
-
-  const styleBase = {
-    color:'#ECEAE4',
-    font:{family:"'Space Grotesk', sans-serif", size:11}
-  };
-  Chart.defaults.color = '#8B909B';
-  Chart.defaults.borderColor = '#2B2F3A';
-  Chart.defaults.font.family = "'Space Grotesk', sans-serif";
-
-  if(chartType==='hist'){
-    const {labels, counts} = histogram(selA.clean.filter(v=>v!==null), 14);
-    chartInstance = new Chart(ctx, {type:'bar', data:{labels, datasets:[{label:selA.name, data:counts, backgroundColor:'#5B8DEF'}]},
-      options:baseOpts(selA.name,'Effectif')});
-    insight.innerHTML = `<b>${selA.name}</b> — moyenne ${fmtNum(selA.stats.mean)}, médiane ${fmtNum(selA.stats.median)}, écart-type ${fmtNum(selA.stats.std)}.`;
-  }
-  else if(chartType==='bar_counts'){
-    const top = selA.stats.top.slice(0,12);
-    chartInstance = new Chart(ctx, {type:'bar', data:{labels:top.map(t=>t[0]), datasets:[{label:selA.name, data:top.map(t=>t[1]), backgroundColor:'#E8A33D'}]},
-      options:baseOpts(selA.name,'Effectif')});
-    insight.innerHTML = `<b>${selA.name}</b> comporte ${selA.stats.unique} modalités. La plus fréquente : <b>${top[0][0]}</b> (${top[0][1]} occurrences).`;
-  }
-  else if(chartType==='hist_date'){
-    const vals = selA.clean.filter(v=>v!==null).sort((a,b)=>a-b);
-    const byMonth = {};
-    vals.forEach(d=>{ const k = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); byMonth[k]=(byMonth[k]||0)+1; });
-    const labels = Object.keys(byMonth).sort();
-    chartInstance = new Chart(ctx, {type:'bar', data:{labels, datasets:[{label:selA.name, data:labels.map(l=>byMonth[l]), backgroundColor:'#B389F0'}]},
-      options:baseOpts('Période','Effectif')});
-  }
-  else if(chartType==='scatter'){
-    const pts = [];
-    cleanRows.forEach(r=>{ if(r[selA.name]!==null && r[selB.name]!==null) pts.push({x:r[selA.name], y:r[selB.name]}); });
-    chartInstance = new Chart(ctx, {type:'scatter', data:{datasets:[{label:`${selA.name} vs ${selB.name}`, data:pts, backgroundColor:'#5B8DEFaa'}]},
-      options:baseOpts(selA.name, selB.name)});
-    const r = pearson(pts.map(p=>p.x), pts.map(p=>p.y));
-    insight.innerHTML = `Corrélation linéaire (Pearson) entre <b>${selA.name}</b> et <b>${selB.name}</b> : <b>${r.toFixed(2)}</b> — ${corrText(r)}`;
-  }
-  else if(chartType==='line_sorted'){
-    const pts = [];
-    cleanRows.forEach(r=>{ if(r[selA.name]!==null && r[selB.name]!==null) pts.push({x:r[selA.name], y:r[selB.name]}); });
-    pts.sort((a,b)=>a.x-b.x);
-    chartInstance = new Chart(ctx, {type:'line', data:{datasets:[{label:`${selB.name} (trié par ${selA.name})`, data:pts, borderColor:'#4FD1A5', backgroundColor:'#4FD1A533', tension:.25, pointRadius:2}]},
-      options:baseOpts(selA.name, selB.name)});
-  }
-  else if(chartType==='bar_mean'){
-    const catCol = selA.type==='categorical'?selA:selB;
-    const numCol = selA.type==='numeric'?selA:selB;
-    const groups = {};
-    cleanRows.forEach(r=>{
-      const k = r[catCol.name], v = r[numCol.name];
-      if(k===null||v===null) return;
-      if(!groups[k]) groups[k] = [];
-      groups[k].push(v);
-    });
-    const labels = Object.keys(groups);
-    const means = labels.map(k => groups[k].reduce((a,b)=>a+b,0)/groups[k].length);
-    chartInstance = new Chart(ctx, {type:'bar', data:{labels, datasets:[{label:`Moyenne de ${numCol.name}`, data:means, backgroundColor:'#5B8DEF'}]},
-      options:baseOpts(catCol.name, numCol.name)});
-    const maxI = means.indexOf(Math.max(...means));
-    insight.innerHTML = `La modalité <b>${labels[maxI]}</b> a la moyenne de <b>${numCol.name}</b> la plus élevée (${fmtNum(means[maxI])}).`;
-  }
-  else if(chartType==='box_like'){
-    const catCol = selA.type==='categorical'?selA:selB;
-    const numCol = selA.type==='numeric'?selA:selB;
-    const groups = {};
-    cleanRows.forEach(r=>{
-      const k = r[catCol.name], v = r[numCol.name];
-      if(k===null||v===null) return;
-      if(!groups[k]) groups[k] = [];
-      groups[k].push(v);
-    });
-    const labels = Object.keys(groups);
-    const mins = labels.map(k=>Math.min(...groups[k]));
-    const maxs = labels.map(k=>Math.max(...groups[k]));
-    const means = labels.map(k=>groups[k].reduce((a,b)=>a+b,0)/groups[k].length);
-    chartInstance = new Chart(ctx, {type:'bar', data:{labels,
-      datasets:[
-        {label:'Min', data:mins, backgroundColor:'#2B2F3A'},
-        {label:'Moyenne', data:means, backgroundColor:'#5B8DEF'},
-        {label:'Max', data:maxs, backgroundColor:'#E8A33D55'}
-      ]}, options:{...baseOpts(catCol.name, numCol.name)}});
-  }
-  else if(chartType==='line_time'){
-    const dateCol = selA.type==='date'?selA:selB;
-    const otherCol = selA.type==='date'?selB:selA;
-    let pts = [];
-    cleanRows.forEach(r=>{
-      const d = r[dateCol.name], v = r[otherCol.name];
-      if(d===null||v===null) return;
-      pts.push({x:d, y: otherCol.type==='numeric'? v : 1, cat: otherCol.type==='categorical'? v : null});
-    });
-    if(otherCol.type==='numeric'){
-      pts.sort((a,b)=>a.x-b.x);
-      chartInstance = new Chart(ctx, {type:'line', data:{datasets:[{label:otherCol.name, data:pts.map(p=>({x:p.x,y:p.y})), borderColor:'#4FD1A5', backgroundColor:'#4FD1A533', tension:.2, pointRadius:2}]},
-        options:{...baseOpts('Date', otherCol.name), scales:{x:{type:'time' in Chart? undefined: undefined}}}});
-    } else {
-      const byMonth = {};
-      pts.forEach(p=>{ const k = p.x.getFullYear()+'-'+String(p.x.getMonth()+1).padStart(2,'0'); byMonth[k]=(byMonth[k]||0)+1; });
-      const labels = Object.keys(byMonth).sort();
-      chartInstance = new Chart(ctx, {type:'bar', data:{labels, datasets:[{label:otherCol.name, data:labels.map(l=>byMonth[l]), backgroundColor:'#B389F0'}]},
-        options:baseOpts('Période','Effectif')});
-    }
-  }
-  else if(chartType==='bar_stacked'){
-    const {labelsX, labelsY, matrix} = crossTab(selA, selB);
-    const datasets = labelsY.map((ly,j)=>({
-      label:String(ly),
-      data:labelsX.map((lx,i)=>matrix[i][j]),
-      backgroundColor: palette(j)
-    }));
-    chartInstance = new Chart(ctx, {type:'bar', data:{labels:labelsX, datasets},
-      options:{...baseOpts(selA.name,'Effectif'), scales:{x:{stacked:true, grid:{display:false}}, y:{stacked:true, grid:{color:'#2B2F3A'}}}}});
-  }
-}
-
-function baseOpts(xLabel, yLabel){
-  return {
-    responsive:true, maintainAspectRatio:false,
-    plugins:{legend:{labels:{color:'#8B909B'}}},
-    scales:{
-      x:{title:{display:true, text:xLabel, color:'#8B909B'}, grid:{color:'#2B2F3A'}, ticks:{color:'#8B909B'}},
-      y:{title:{display:true, text:yLabel, color:'#8B909B'}, grid:{color:'#2B2F3A'}, ticks:{color:'#8B909B'}}
-    }
-  };
-}
-
-function palette(i){
-  const p = ['#5B8DEF','#E8A33D','#4FD1A5','#B389F0','#EF5B7E','#5BEFDB'];
-  return p[i % p.length] + 'cc';
-}
-
-function histogram(vals, bins){
-  if(!vals.length) return {labels:[], counts:[]};
-  const min = Math.min(...vals), max = Math.max(...vals);
-  const range = (max-min)||1;
-  const counts = new Array(bins).fill(0);
-  vals.forEach(v=>{
-    let idx = Math.floor(((v-min)/range)*bins);
-    if(idx>=bins) idx=bins-1; if(idx<0) idx=0;
-    counts[idx]++;
-  });
-  const labels = counts.map((_,i)=> fmtNum(min+i*range/bins));
-  return {labels, counts};
-}
-
-function crossTab(a, b){
-  const labelsX = a.type==='categorical' ? a.stats.top.map(t=>t[0]).slice(0,10) : [...new Set(a.clean.filter(v=>v!==null))];
-  const labelsY = b.type==='categorical' ? b.stats.top.map(t=>t[0]).slice(0,6) : [...new Set(b.clean.filter(v=>v!==null))];
-  const matrix = labelsX.map(()=> labelsY.map(()=>0));
-  cleanRows.forEach(r=>{
-    const va = r[a.name], vb = r[b.name];
-    const i = labelsX.indexOf(va), j = labelsY.indexOf(vb);
-    if(i>=0 && j>=0) matrix[i][j]++;
-  });
-  return {labelsX, labelsY, matrix};
-}
-
-function renderHeatmap(area){
-  const {labelsX, labelsY, matrix} = crossTab(selA, selB);
-  const max = Math.max(1, ...matrix.flat());
-  let html = '<table class="heat"><thead><tr><th></th>' + labelsY.map(l=>`<th>${l}</th>`).join('') + '</tr></thead><tbody>';
-  labelsX.forEach((lx,i)=>{
-    html += `<tr><th>${lx}</th>` + labelsY.map((ly,j)=>{
-      const v = matrix[i][j];
-      const alpha = (v/max*0.85+0.05).toFixed(2);
-      return `<td style="background:rgba(91,141,239,${alpha})">${v}</td>`;
-    }).join('') + '</tr>';
-  });
-  html += '</tbody></table>';
-  area.innerHTML = html;
-  document.getElementById('insight').innerHTML = `Tableau croisé des effectifs entre <b>${selA.name}</b> et <b>${selB.name}</b>. Les cellules plus foncées indiquent une combinaison plus fréquente.`;
-}
-
-function pearson(xs, ys){
-  const n = xs.length;
-  if(n<2) return 0;
-  const mx = xs.reduce((a,b)=>a+b,0)/n, my = ys.reduce((a,b)=>a+b,0)/n;
-  let num=0, dx=0, dy=0;
-  for(let i=0;i<n;i++){ num += (xs[i]-mx)*(ys[i]-my); dx += (xs[i]-mx)**2; dy += (ys[i]-my)**2; }
-  const denom = Math.sqrt(dx*dy);
-  return denom===0 ? 0 : num/denom;
-}
-
-function corrText(r){
-  const a = Math.abs(r);
-  if(a<0.1) return "quasiment aucune relation linéaire.";
-  if(a<0.3) return "relation linéaire faible.";
-  if(a<0.5) return "relation linéaire modérée.";
-  if(a<0.7) return "relation linéaire assez forte.";
-  return "relation linéaire forte" + (r<0 ? " (négative : quand l'une augmente, l'autre diminue)." : " (positive : les deux augmentent ensemble).");
-}
-</script>
-</body>
-</html>
+  if(t==='categorical-categorical') return
