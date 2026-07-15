@@ -6,27 +6,27 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/date-fns/3.6.0/cdn.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-adapter-date-fns/3.0.0/chartjs-adapter-date-fns.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
 <style>
   :root{
-    --bg:#14161B;
-    --panel:#1B1E25;
-    --panel-2:#21252E;
-    --text:#ECEAE4;
-    --text-dim:#8B909B;
-    --border:#2B2F3A;
-    --accent:#5B8DEF;
-    --accent-soft:rgba(91,141,239,.14);
-    --good:#4FD1A5;
-    --good-soft:rgba(79,209,165,.14);
-    --warn:#E8A33D;
-    --warn-soft:rgba(232,163,61,.14);
-    --num:#5B8DEF;
-    --cat:#E8A33D;
-    --date:#B389F0;
+    --bg:#F4F6F9;          /* Fond de la page (Gris très clair) */
+    --panel:#FFFFFF;       /* Fond des blocs principaux (Blanc) */
+    --panel-2:#F8FAFC;     /* Fond des sous-blocs et graphiques (Gris bleuté doux) */
+    --text:#1E293B;        /* Couleur du texte principal (Ardoise sombre) */
+    --text-dim:#64748B;    /* Couleur du texte secondaire (Gris atténué) */
+    --border:#E2E8F0;      /* Couleur des bordures et séparateurs */
+    --accent:#3B82F6;      /* Couleur d'accentuation (Bleu moderne) */
+    --accent-soft:rgba(59,130,246,.08);
+    --good:#10B981;        /* Vert de réussite */
+    --good-soft:rgba(16,185,129,.08);
+    --warn:#F59E0B;        /* Orange d'avertissement */
+    --warn-soft:rgba(245,158,11,.08);
+    --num:#3B82F6;
+    --cat:#F59E0B;
+    --date:#8B5CF6;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -116,7 +116,7 @@
   }
   .btn-action{
     background:var(--accent);
-    color:#0d0f13;
+    color:#ffffff;
     border:none;
     font-family:'Space Grotesk', sans-serif;
     font-weight:600;
@@ -129,10 +129,18 @@
   .btn-action:hover{
     opacity: 0.9;
   }
+  .btn-download{
+    background:var(--good);
+    color:#ffffff;
+    margin-top:14px;
+    display: inline-flex;
+    align-items: center;
+    gap:8px;
+  }
 
   /* log panel */
   .log{
-    background:#101216; border:1px solid var(--border); border-radius:10px;
+    background:#F1F5F9; border:1px solid var(--border); border-radius:10px;
     padding:14px 16px; font-family:'JetBrains Mono',monospace; font-size:12px; line-height:1.9;
     max-height:220px; overflow-y:auto;
   }
@@ -161,9 +169,9 @@
     font-family:'JetBrains Mono',monospace; font-size:9.5px; padding:2px 7px; border-radius:20px;
     text-transform:uppercase; letter-spacing:.5px; flex:none; margin-left:6px;
   }
-  .type-numeric{background:rgba(91,141,239,.16); color:var(--num);}
-  .type-categorical{background:rgba(232,163,61,.16); color:var(--cat);}
-  .type-date{background:rgba(179,137,240,.16); color:var(--date);}
+  .type-numeric{background:rgba(59,130,246,.12); color:var(--num);}
+  .type-categorical{background:rgba(245,158,11,.12); color:var(--cat);}
+  .type-date{background:rgba(139,92,246,.12); color:var(--date);}
   .var-mini{height:34px; margin:6px 0;}
   .var-meta{font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-dim); display:flex; justify-content:space-between;}
   .var-meta .miss{color:var(--warn);}
@@ -189,12 +197,12 @@
     font-family:'JetBrains Mono',monospace; font-size:11px; padding:7px 13px; border-radius:20px;
     background:var(--panel-2); border:1px solid var(--border); color:var(--text-dim); cursor:pointer;
   }
-  .chart-tab.active{background:var(--accent); color:#0d0f13; border-color:var(--accent); font-weight:600;}
+  .chart-tab.active{background:var(--accent); color:#ffffff; border-color:var(--accent); font-weight:600;}
   .chart-tab:hover:not(.active){border-color:var(--accent);}
 
   .chart-area{background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:16px; min-height:340px;}
   .insight{
-    margin-top:14px; padding:12px 14px; background:var(--good-soft); border:1px solid rgba(79,209,165,.3);
+    margin-top:14px; padding:12px 14px; background:var(--good-soft); border:1px solid rgba(16,185,129,.2);
     border-radius:8px; font-size:12.5px; color:var(--text); line-height:1.6;
   }
   .insight b{color:var(--good);}
@@ -213,8 +221,8 @@
   .hidden{display:none !important;}
   #fileMeta{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-dim); margin-top:10px; text-align:center;}
   #errorBanner{
-    margin-top:14px; padding:12px 14px; background:rgba(232,90,90,.12); border:1px solid rgba(232,90,90,.4);
-    border-radius:8px; font-size:12.5px; color:#F0A0A0; font-family:'JetBrains Mono',monospace; line-height:1.6;
+    margin-top:14px; padding:12px 14px; background:rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.3);
+    border-radius:8px; font-size:12.5px; color:#DC2626; font-family:'JetBrains Mono',monospace; line-height:1.6;
   }
 </style>
 </head>
@@ -287,6 +295,7 @@
       <div id="cleaningResults" class="hidden">
         <div class="log" id="log"></div>
         <div class="stat-row" id="statRow"></div>
+        <button id="downloadBtn" class="btn-action btn-download">📥 Télécharger les données nettoyées (CSV)</button>
       </div>
     </div>
 
@@ -337,20 +346,21 @@ window.addEventListener('error', e=>{
 });
 window.addEventListener('DOMContentLoaded', ()=>{
   if(typeof Papa === 'undefined'){
-    showError("La librairie PapaParse n'a pas pu être chargée (CDN bloqué ou pas de connexion internet). L'import de CSV ne fonctionnera pas.");
+    showError("La librairie PapaParse n'a pas pu être chargée. L'import de CSV ne fonctionnera pas.");
   } else if(typeof Chart === 'undefined'){
-    showError("La librairie Chart.js n'a pas pu être chargée (CDN bloqué ou pas de connexion internet). Les graphiques ne fonctionneront pas.");
+    showError("La librairie Chart.js n'a pas pu être chargée. Les graphiques ne fonctionneront pas.");
   }
 });
 
 // ---------- state ----------
-let loadedCSVText = ""; // Sauvegarde du contenu brut chargé
+let loadedCSVText = ""; 
 let rawRows = [];
-let columns = [];      // {name, type, values(raw), clean(array), stats}
+let columns = [];      
 let cleanRows = [];
 let selA = null, selB = null;
 let chartType = null;
 let chartInstance = null;
+let activeFileName = "donnees_nettoyees.csv";
 
 // ---------- upload handling ----------
 const dropZone = document.getElementById('dropZone');
@@ -371,8 +381,8 @@ document.getElementById('sampleBtn').addEventListener('click', ()=>{
   try{
     const sample = generateSampleCSV();
     fileMeta.textContent = "Jeu de données d'exemple chargé";
+    activeFileName = "donnees_exemple_nettoyees.csv";
     loadedCSVText = sample;
-    // On affiche l'app (la config du nettoyage) mais on ne lance pas l'analyse
     resetInterfaceForNewFile();
   }catch(err){
     console.error(err);
@@ -384,10 +394,19 @@ document.getElementById('sampleBtn').addEventListener('click', ()=>{
 function handleFile(file){
   clearError();
   if(typeof Papa === 'undefined'){
-    showError("Impossible de lire le fichier : la librairie PapaParse n'est pas chargée (vérifiez votre connexion internet ou un bloqueur de script).");
+    showError("Impossible de lire le fichier : la librairie PapaParse n'est pas chargée.");
     return;
   }
   fileMeta.textContent = file.name + ' · ' + (file.size/1024).toFixed(1) + ' Ko';
+  
+  // Générer un nom de fichier pour l'export basé sur le nom d'origine
+  const dotIndex = file.name.lastIndexOf('.');
+  if(dotIndex !== -1) {
+    activeFileName = file.name.substring(0, dotIndex) + "_clean.csv";
+  } else {
+    activeFileName = file.name + "_clean.csv";
+  }
+
   const reader = new FileReader();
   reader.onload = e => {
     try{
@@ -417,10 +436,9 @@ function generateSampleCSV(){
     const missing = Math.random() < 0.05 ? '' : revenu;
     rows.push([age, ville, seg, missing, anciennete, satisfaction].join(','));
   }
-  // Injection de quelques doublons et lignes vides volontaires pour tester le nettoyage configurable
-  rows.push(",,,,,"); // Ligne vide
-  rows.push("30,Lyon,Particulier,2500,12,6"); // Ligne 1
-  rows.push("30,Lyon,Particulier,2500,12,6"); // Doublon de la ligne 1
+  rows.push(",,,,,"); 
+  rows.push("30,Lyon,Particulier,2500,12,6"); 
+  rows.push("30,Lyon,Particulier,2500,12,6"); 
   return rows.join(String.fromCharCode(10));
 }
 
@@ -461,7 +479,7 @@ function processCSVText(text){
   rawRows = parsed.data;
   const originalCols = parsed.meta.fields || [];
   if(!originalCols.length || !rawRows.length){
-    showError("Aucune colonne ou ligne exploitable n'a été détectée dans ce fichier. Vérifiez qu'il s'agit bien d'un CSV avec une ligne d'en-tête.");
+    showError("Aucune colonne ou ligne exploitable n'a été détectée dans ce fichier.");
     return;
   }
   const log = [];
@@ -479,7 +497,6 @@ function processCSVText(text){
   colNames.forEach((c,i)=>{ colValues[c] = rawRows.map(r=>{
     let v = r[originalCols[i]];
     if(v===undefined || v===null) return '';
-    // Option trim des cellules texte
     if(typeof v === 'string' && trimCells) v = v.trim();
     return v;
   });});
@@ -504,7 +521,7 @@ function processCSVText(text){
     if (removeEmptyRows) {
       if(!allEmpty) keepRowIdx.push(i);
     } else {
-      keepRowIdx.push(i); // On garde tout
+      keepRowIdx.push(i); 
     }
   }
   colNames.forEach(c=>{ colValues[c] = keepRowIdx.map(i=>colValues[c][i]); });
@@ -526,7 +543,6 @@ function processCSVText(text){
     colNames.forEach(c=>{ colValues[c] = finalRowIdx.map(i=>colValues[c][i]); });
     duplicatesRemoved = dupIdx.size;
   } else {
-    // Si pas de déduplication, on prend toutes les lignes indexées restantes
     const finalRowIdx = Array.from({length: rowCount}, (_, i) => i);
     colNames.forEach(c=>{ colValues[c] = finalRowIdx.map(i=>colValues[c][i]); });
   }
@@ -581,9 +597,18 @@ function processCSVText(text){
     }
   });
 
+  // Création des lignes nettoyées pour l'analyse ET l'export final
   cleanRows = Array.from({length: colValues[colNames[0]].length}).map((_,i)=>{
     let r = {};
-    columns.forEach(c=> r[c.name] = c.clean[i]);
+    columns.forEach(c=> {
+      let val = c.clean[i];
+      // Si c'est une date, on la remet au propre au format ISO pour l'export, sinon brute
+      if (val instanceof Date) {
+        r[c.name] = val.toISOString().split('T')[0];
+      } else {
+        r[c.name] = val;
+      }
+    });
     return r;
   });
 
@@ -596,19 +621,17 @@ function processCSVText(text){
   
   columns.forEach(c=>{
     if(c.missing>0){
-      log.push({text:`« ${c.name} » : ${c.missing} valeur(s) manquante(s) (exclues des statistiques)`, kind:'warn'});
+      log.push({text:`« ${c.name} » : ${c.missing} valeur(s) manquante(s)`, kind:'warn'});
     }
   });
-  log.push({text:`Types détectés automatiquement : ${columns.filter(c=>c.type==='numeric').length} numérique(s), ${columns.filter(c=>c.type==='categorical').length} catégorielle(s), ${columns.filter(c=>c.type==='date').length} date(s)`, kind:'good'});
-  log.push({text:`${cleanRows.length} lignes propres × ${columns.length} colonnes prêtes à l'analyse`, kind:'good'});
+  log.push({text:`${cleanRows.length} lignes propres prêtes à l'analyse`, kind:'good'});
 
-  // Rendu de l'interface après nettoyage réussi
+  // Rendu
   renderLog(log);
   renderStatRow(nRowsBefore, cleanRows.length, columns.length, emptyRowsRemoved+duplicatesRemoved);
   renderVarGrid();
   renderSelectors();
 
-  // Affichage des blocs de résultats
   document.getElementById('cleaningResults').classList.remove('hidden');
   document.getElementById('analysisSections').classList.remove('hidden');
 }
@@ -631,6 +654,47 @@ function parseFrenchDate(v) {
   }
   return new Date(v);
 }
+
+// ---------- Export CSV de secours / PapaParse ----------
+document.getElementById('downloadBtn').addEventListener('click', () => {
+  if(!cleanRows || !cleanRows.length){
+    alert("Aucune donnée nettoyée à exporter.");
+    return;
+  }
+
+  let csvString = "";
+  if(typeof Papa !== 'undefined') {
+    csvString = Papa.unparse(cleanRows);
+  } else {
+    // Solution de secours sans PapaParse
+    const headers = Object.keys(cleanRows[0]);
+    const csvLines = [headers.join(',')];
+    cleanRows.forEach(row => {
+      const line = headers.map(header => {
+        let val = row[header];
+        if(val === null || val === undefined) val = '';
+        let strVal = String(val);
+        if(strVal.includes(',') || strVal.includes('"') || strVal.includes('\n')) {
+          strVal = '"' + strVal.replace(/"/g, '""') + '"';
+        }
+        return strVal;
+      });
+      csvLines.push(line.join(','));
+    });
+    csvString = csvLines.join('\n');
+  }
+
+  // Création du lien de téléchargement
+  const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvString], {type: "text/csv;charset=utf-8;"});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", activeFileName);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+});
 
 // ---------- render: log ----------
 function renderLog(entries){
@@ -725,7 +789,7 @@ function drawMiniViz(svg, col){
     const top = col.stats.top.slice(0,6);
     const total = top.reduce((a,b)=>a+b[1],0) || 1;
     let x = 0;
-    const colors = ['#E8A33D','#E8A33Dcc','#E8A33Daa','#E8A33D88','#E8A33D66','#E8A33D44'];
+    const colors = ['#3B82F6','#3B82F6cc','#3B82F6aa','#3B82F688','#3B82F666','#3B82F644'];
     top.forEach((t,i)=>{
       const w = (t[1]/total)*198;
       const rect = document.createElementNS(ns,'rect');
@@ -849,19 +913,19 @@ function renderChart(){
   area.appendChild(canvas);
   const ctx = canvas.getContext('2d');
 
-  Chart.defaults.color = '#8B909B';
-  Chart.defaults.borderColor = '#2B2F3A';
+  Chart.defaults.color = '#64748B';
+  Chart.defaults.borderColor = '#E2E8F0';
   Chart.defaults.font.family = "'Space Grotesk', sans-serif";
 
   if(chartType==='hist'){
     const {labels, counts} = histogram(selA.clean.filter(v=>v!==null), 14);
-    chartInstance = new Chart(ctx, {type:'bar', data:{labels, datasets:[{label:selA.name, data:counts, backgroundColor:'#5B8DEF'}]},
+    chartInstance = new Chart(ctx, {type:'bar', data:{labels, datasets:[{label:selA.name, data:counts, backgroundColor:'#3B82F6'}]},
       options:baseOpts(selA.name,'Effectif')});
     insight.innerHTML = `<b>${selA.name}</b> — moyenne ${fmtNum(selA.stats.mean)}, médiane ${fmtNum(selA.stats.median)}, écart-type ${fmtNum(selA.stats.std)}.`;
   }
   else if(chartType==='bar_counts'){
     const top = selA.stats.top.slice(0,12);
-    chartInstance = new Chart(ctx, {type:'bar', data:{labels:top.map(t=>t[0]), datasets:[{label:selA.name, data:top.map(t=>t[1]), backgroundColor:'#E8A33D'}]},
+    chartInstance = new Chart(ctx, {type:'bar', data:{labels:top.map(t=>t[0]), datasets:[{label:selA.name, data:top.map(t=>t[1]), backgroundColor:'#F59E0B'}]},
       options:baseOpts(selA.name,'Effectif')});
     insight.innerHTML = `<b>${selA.name}</b> comporte ${selA.stats.unique} modalités. La plus fréquente : <b>${top[0][0]}</b> (${top[0][1]} occurrences).`;
   }
@@ -870,13 +934,13 @@ function renderChart(){
     const byMonth = {};
     vals.forEach(d=>{ const k = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); byMonth[k]=(byMonth[k]||0)+1; });
     const labels = Object.keys(byMonth).sort();
-    chartInstance = new Chart(ctx, {type:'bar', data:{labels, datasets:[{label:selA.name, data:labels.map(l=>byMonth[l]), backgroundColor:'#B389F0'}]},
+    chartInstance = new Chart(ctx, {type:'bar', data:{labels, datasets:[{label:selA.name, data:labels.map(l=>byMonth[l]), backgroundColor:'#8B5CF6'}]},
       options:baseOpts('Période','Effectif')});
   }
   else if(chartType==='scatter'){
     const pts = [];
     cleanRows.forEach(r=>{ if(r[selA.name]!==null && r[selB.name]!==null) pts.push({x:r[selA.name], y:r[selB.name]}); });
-    chartInstance = new Chart(ctx, {type:'scatter', data:{datasets:[{label:`${selA.name} vs ${selB.name}`, data:pts, backgroundColor:'#5B8DEFaa'}]},
+    chartInstance = new Chart(ctx, {type:'scatter', data:{datasets:[{label:`${selA.name} vs ${selB.name}`, data:pts, backgroundColor:'rgba(59,130,246,0.6)'}]},
       options:baseOpts(selA.name, selB.name)});
     const r = pearson(pts.map(p=>p.x), pts.map(p=>p.y));
     insight.innerHTML = `Corrélation linéaire (Pearson) entre <b>${selA.name}</b> et <b>${selB.name}</b> : <b>${r.toFixed(2)}</b> — ${corrText(r)}`;
@@ -885,7 +949,7 @@ function renderChart(){
     const pts = [];
     cleanRows.forEach(r=>{ if(r[selA.name]!==null && r[selB.name]!==null) pts.push({x:r[selA.name], y:r[selB.name]}); });
     pts.sort((a,b)=>a.x-b.x);
-    chartInstance = new Chart(ctx, {type:'line', data:{datasets:[{label:`${selB.name} (trié par ${selA.name})`, data:pts, borderColor:'#4FD1A5', backgroundColor:'#4FD1A533', tension:.25, pointRadius:2}]},
+    chartInstance = new Chart(ctx, {type:'line', data:{datasets:[{label:`${selB.name} (trié par ${selA.name})`, data:pts, borderColor:'#10B981', backgroundColor:'rgba(16,185,129,0.15)', tension:.25, pointRadius:2}]},
       options:baseOpts(selA.name, selB.name)});
   }
   else if(chartType==='bar_mean'){
@@ -900,7 +964,7 @@ function renderChart(){
     });
     const labels = Object.keys(groups);
     const means = labels.map(k => groups[k].reduce((a,b)=>a+b,0)/groups[k].length);
-    chartInstance = new Chart(ctx, {type:'bar', data:{labels, datasets:[{label:`Moyenne de ${numCol.name}`, data:means, backgroundColor:'#5B8DEF'}]},
+    chartInstance = new Chart(ctx, {type:'bar', data:{labels, datasets:[{label:`Moyenne de ${numCol.name}`, data:means, backgroundColor:'#3B82F6'}]},
       options:baseOpts(catCol.name, numCol.name)});
     const maxI = means.indexOf(Math.max(...means));
     insight.innerHTML = `La modalité <b>${labels[maxI]}</b> a la moyenne de <b>${numCol.name}</b> la plus élevée (${fmtNum(means[maxI])}).`;
@@ -921,9 +985,9 @@ function renderChart(){
     const means = labels.map(k=>groups[k].reduce((a,b)=>a+b,0)/groups[k].length);
     chartInstance = new Chart(ctx, {type:'bar', data:{labels,
       datasets:[
-        {label:'Min', data:mins, backgroundColor:'#2B2F3A'},
-        {label:'Moyenne', data:means, backgroundColor:'#5B8DEF'},
-        {label:'Max', data:maxs, backgroundColor:'#E8A33D55'}
+        {label:'Min', data:mins, backgroundColor:'#64748B'},
+        {label:'Moyenne', data:means, backgroundColor:'#3B82F6'},
+        {label:'Max', data:maxs, backgroundColor:'rgba(245,158,11,0.3)'}
       ]}, options:{...baseOpts(catCol.name, numCol.name)}});
   }
   else if(chartType==='line_time'){
@@ -933,7 +997,8 @@ function renderChart(){
     cleanRows.forEach(r=>{
       const d = r[dateCol.name], v = r[otherCol.name];
       if(d===null||v===null) return;
-      pts.push({x:d, y: otherCol.type==='numeric'? v : 1});
+      // Re-parser la date string en objet Date pour ChartJS
+      pts.push({x: new Date(d), y: otherCol.type==='numeric'? v : 1});
     });
     pts.sort((a,b)=>a.x.getTime()-b.x.getTime());
 
@@ -944,8 +1009,8 @@ function renderChart(){
           datasets:[{
             label:otherCol.name, 
             data:pts.map(p=>({x:p.x, y:p.y})), 
-            borderColor:'#4FD1A5', 
-            backgroundColor:'#4FD1A533', 
+            borderColor:'#10B981', 
+            backgroundColor:'rgba(16,185,129,0.15)', 
             tension:.2, 
             pointRadius:2
           }]
@@ -959,14 +1024,14 @@ function renderChart(){
                 tooltipFormat:'dd/MM/yyyy',
                 unit:'month'
               },
-              title:{display:true, text:'Date', color:'#8B909B'},
-              grid:{color:'#2B2F3A'},
-              ticks:{color:'#8B909B'}
+              title:{display:true, text:'Date', color:'#64748B'},
+              grid:{color:'#E2E8F0'},
+              ticks:{color:'#64748B'}
             },
             y:{
-              title:{display:true, text:otherCol.name, color:'#8B909B'},
-              grid:{color:'#2B2F3A'},
-              ticks:{color:'#8B909B'}
+              title:{display:true, text:otherCol.name, color:'#64748B'},
+              grid:{color:'#E2E8F0'},
+              ticks:{color:'#64748B'}
             }
           }
         }
@@ -975,7 +1040,7 @@ function renderChart(){
       const byMonth = {};
       pts.forEach(p=>{ const k = p.x.getFullYear()+'-'+String(p.x.getMonth()+1).padStart(2,'0'); byMonth[k]=(byMonth[k]||0)+1; });
       const labels = Object.keys(byMonth).sort();
-      chartInstance = new Chart(ctx, {type:'bar', data:{labels, datasets:[{label:otherCol.name, data:labels.map(l=>byMonth[l]), backgroundColor:'#B389F0'}]},
+      chartInstance = new Chart(ctx, {type:'bar', data:{labels, datasets:[{label:otherCol.name, data:labels.map(l=>byMonth[l]), backgroundColor:'#8B5CF6'}]},
         options:baseOpts('Période','Effectif')});
     }
   }
@@ -987,23 +1052,23 @@ function renderChart(){
       backgroundColor: palette(j)
     }));
     chartInstance = new Chart(ctx, {type:'bar', data:{labels:labelsX, datasets},
-      options:{...baseOpts(selA.name,'Effectif'), scales:{x:{stacked:true, grid:{display:false}}, y:{stacked:true, grid:{color:'#2B2F3A'}}}}});
+      options:{...baseOpts(selA.name,'Effectif'), scales:{x:{stacked:true, grid:{display:false}}, y:{stacked:true, grid:{color:'#E2E8F0'}}}}});
   }
 }
 
 function baseOpts(xLabel, yLabel){
   return {
     responsive:true, maintainAspectRatio:false,
-    plugins:{legend:{labels:{color:'#8B909B'}}},
+    plugins:{legend:{labels:{color:'#64748B'}}},
     scales:{
-      x:{title:{display:true, text:xLabel, color:'#8B909B'}, grid:{color:'#2B2F3A'}, ticks:{color:'#8B909B'}},
-      y:{title:{display:true, text:yLabel, color:'#8B909B'}, grid:{color:'#2B2F3A'}, ticks:{color:'#8B909B'}}
+      x:{title:{display:true, text:xLabel, color:'#64748B'}, grid:{color:'#E2E8F0'}, ticks:{color:'#64748B'}},
+      y:{title:{display:true, text:yLabel, color:'#64748B'}, grid:{color:'#E2E8F0'}, ticks:{color:'#64748B'}}
     }
   };
 }
 
 function palette(i){
-  const p = ['#5B8DEF','#E8A33D','#4FD1A5','#B389F0','#EF5B7E','#5BEFDB'];
+  const p = ['#3B82F6','#F59E0B','#10B981','#8B5CF6','#EF4444','#06B6D4'];
   return p[i % p.length] + 'cc';
 }
 
@@ -1022,15 +1087,23 @@ function histogram(vals, bins){
 }
 
 function crossTab(a, b){
-  const labelsX = a.type==='categorical' ? a.stats.top.map(t=>t[0]).slice(0,10) : [...new Set(a.clean.filter(v=>v!==null))];
-  const labelsY = b.type==='categorical' ? b.stats.top.map(t=>t[0]).slice(0,6) : [...new Set(b.clean.filter(v=>v!==null))];
-  const matrix = labelsX.map(()=> labelsY.map(()=>0));
+  const labelsX = a.type==='categorical' ? a.stats.top.map(t=>t[0]).slice(0,10) : [...new Set(a.clean.map(idx => cleanRows.map(r => r[a.name])[idx]))];
+  const labelsY = b.type==='categorical' ? b.stats.top.map(t=>t[0]).slice(0,6) : [...new Set(b.clean.map(idx => cleanRows.map(r => r[b.name])[idx]))];
+  
+  // Utiliser directement les valeurs de cleanRows
+  const uniqueX = [...new Set(cleanRows.map(r => r[a.name]).filter(v => v !== null))].slice(0,15);
+  const uniqueY = [...new Set(cleanRows.map(r => r[b.name]).filter(v => v !== null))].slice(0,10);
+  
+  const finalX = a.type==='categorical' ? labelsX : uniqueX;
+  const finalY = b.type==='categorical' ? labelsY : uniqueY;
+
+  const matrix = finalX.map(()=> finalY.map(()=>0));
   cleanRows.forEach(r=>{
     const va = r[a.name], vb = r[b.name];
-    const i = labelsX.indexOf(va), j = labelsY.indexOf(vb);
+    const i = finalX.indexOf(va), j = finalY.indexOf(vb);
     if(i>=0 && j>=0) matrix[i][j]++;
   });
-  return {labelsX, labelsY, matrix};
+  return {labelsX: finalX, labelsY: finalY, matrix};
 }
 
 function renderHeatmap(area){
@@ -1041,7 +1114,7 @@ function renderHeatmap(area){
     html += `<tr><th>${lx}</th>` + labelsY.map((ly,j)=>{
       const v = matrix[i][j];
       const alpha = (v/max*0.85+0.05).toFixed(2);
-      return `<td style="background:rgba(91,141,239,${alpha})">${v}</td>`;
+      return `<td style="background:rgba(59,130,246,${alpha})">${v}</td>`;
     }).join('') + '</tr>';
   });
   html += '</tbody></table>';
@@ -1059,6 +1132,7 @@ function pearson(xs, ys){
   return denom===0 ? 0 : num/denom;
 }
 
+// Interprétation de r
 function corrText(r){
   const a = Math.abs(r);
   if(a<0.1) return "quasiment aucune relation linéaire.";
