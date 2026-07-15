@@ -114,6 +114,11 @@
   .clean-opt:hover{
     color:var(--text);
   }
+  .btn-container{
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
   .btn-action{
     background:var(--accent);
     color:#0d0f13;
@@ -130,23 +135,22 @@
     opacity: 0.9;
   }
   .btn-download{
-    background:var(--good);
-    color:#0d0f13;
-    border:none;
+    background:transparent;
+    color:var(--good);
+    border:1px solid var(--good);
     font-family:'Space Grotesk', sans-serif;
     font-weight:600;
     font-size:13px;
     padding:10px 20px;
     border-radius:8px;
     cursor:pointer;
-    margin-top:12px;
-    transition: opacity 0.15s;
+    transition: background 0.15s, color 0.15s;
     display: inline-flex;
     align-items: center;
     gap: 6px;
   }
   .btn-download:hover{
-    opacity: 0.9;
+    background:var(--good-soft);
   }
 
   /* log panel */
@@ -159,7 +163,7 @@
   .log .line b{color:var(--good); font-weight:600;}
   .log .line .n{color:var(--accent);}
 
-  .stat-row{display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;}
+  .stat-row{display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; align-items: center;}
   .stat-pill{
     background:var(--panel-2); border:1px solid var(--border); border-radius:8px;
     padding:8px 12px; font-size:12px; color:var(--text-dim);
@@ -300,12 +304,13 @@
             </div>
           </label>
         </div>
-        <button id="runCleanBtn" class="btn-action">Lancer le nettoyage et l'analyse</button>
+        <div class="btn-container">
+          <button id="runCleanBtn" class="btn-action">Lancer le nettoyage et l'analyse</button>
+        </div>
       </div>
 
       <div id="cleaningResults" class="hidden">
         <div class="log" id="log"></div>
-        <button id="downloadCleanBtn" class="btn-download">↓ Télécharger le CSV nettoyé</button>
         <div class="stat-row" id="statRow"></div>
       </div>
     </div>
@@ -368,6 +373,7 @@ let loadedCSVText = ""; // Sauvegarde du contenu brut chargé
 let rawRows = [];
 let columns = [];      // {name, type, values(raw), clean(array), stats}
 let cleanRows = [];
+let currentFileName = "donnees_nettoyees.csv";
 let selA = null, selB = null;
 let chartType = null;
 let chartInstance = null;
@@ -392,6 +398,7 @@ document.getElementById('sampleBtn').addEventListener('click', ()=>{
     const sample = generateSampleCSV();
     fileMeta.textContent = "Jeu de données d'exemple chargé";
     loadedCSVText = sample;
+    currentFileName = "exemple_nettoye avec_succes.csv";
     // On affiche l'app (la config du nettoyage) mais on ne lance pas l'analyse
     resetInterfaceForNewFile();
   }catch(err){
@@ -408,6 +415,7 @@ function handleFile(file){
     return;
   }
   fileMeta.textContent = file.name + ' · ' + (file.size/1024).toFixed(1) + ' Ko';
+  currentFileName = file.name.replace(/\.csv$/i, '') + '_nettoye.csv';
   const reader = new FileReader();
   reader.onload = e => {
     try{
@@ -457,25 +465,6 @@ document.getElementById('runCleanBtn').addEventListener('click', () => {
     return;
   }
   processCSVText(loadedCSVText);
-});
-
-// ---------- download functionality ----------
-document.getElementById('downloadCleanBtn').addEventListener('click', () => {
-  if (!cleanRows || cleanRows.length === 0) return;
-  
-  // Utilisation de PapaParse pour recréer proprement le fichier CSV
-  const csvContent = Papa.unparse(cleanRows);
-  
-  // Création du fichier temporaire pour le téléchargement
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.setAttribute("href", url);
-  link.setAttribute("download", "donnees_nettoyees.csv");
-  link.style.visibility = 'hidden';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
 });
 
 // ---------- parsing + cleaning configurable ----------
@@ -686,7 +675,57 @@ function renderStatRow(before, after, nCols, removed){
     <div class="stat-pill">Lignes nettoyées <b>${after}</b></div>
     <div class="stat-pill">Lignes retirées <b>${removed}</b></div>
     <div class="stat-pill">Variables <b>${nCols}</b></div>
+    <button id="downloadCleanBtn" class="btn-download" type="button">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+      Télécharger le CSV nettoyé
+    </button>
   `;
+  
+  // Attachement de l'événement de téléchargement du CSV généré
+  document.getElementById('downloadCleanBtn').addEventListener('click', downloadCleanCSV);
+}
+
+// ---------- export logic ----------
+function downloadCleanCSV() {
+  if (!columns.length || !cleanRows.length) return;
+  
+  // Extraction des en-têtes
+  const headers = columns.map(c => c.name);
+  
+  // Reconstruction des lignes nettoyées au format CSV standard
+  const csvLines = [headers.join(',')];
+  
+  cleanRows.forEach(row => {
+    const values = columns.map(col => {
+      let val = row[col.name];
+      if (val === null || val === undefined) {
+        return '';
+      }
+      if (col.type === 'date' && val instanceof Date) {
+        // Formatage de la date en ISO (AAAA-MM-JJ)
+        return val.toISOString().split('T')[0];
+      }
+      // Si la valeur contient une virgule ou des guillemets, on l'encapsule de guillemets
+      let valStr = String(val);
+      if (valStr.includes(',') || valStr.includes('"') || valStr.includes('\n')) {
+        valStr = '"' + valStr.replace(/"/g, '""') + '"';
+      }
+      return valStr;
+    });
+    csvLines.push(values.join(','));
+  });
+  
+  const csvContent = csvLines.join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", currentFileName);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
 
 // ---------- render: variable cards ----------
@@ -960,9 +999,9 @@ function renderChart(){
     const means = labels.map(k=>groups[k].reduce((a,b)=>a+b,0)/groups[k].length);
     chartInstance = new Chart(ctx, {type:'bar', data:{labels,
       datasets:[
-        {label='Min', data:mins, backgroundColor:'#2B2F3A'},
-        {label='Moyenne', data:means, backgroundColor:'#5B8DEF'},
-        {label='Max', data:maxs, backgroundColor:'#E8A33D55'}
+        {label:'Min', data:mins, backgroundColor:'#2B2F3A'},
+        {label:'Moyenne', data:means, backgroundColor:'#5B8DEF'},
+        {label:'Max', data:maxs, backgroundColor:'#E8A33D55'}
       ]}, options:{...baseOpts(catCol.name, numCol.name)}});
   }
   else if(chartType==='line_time'){
