@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Banc d'analyse — Explorateur de données</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#14161B;
+    --panel:#1B1E25;
+    --panel-2:#21252E;
+    --text:#ECEAE4;
+    --text-dim:#8B909B;
+    --border:#2B2F3A;
+    --accent:#5B8DEF;
+    --accent-soft:rgba(91,141,239,.14);
+    --good:#4FD1A5;
+    --good-soft:rgba(79,209,165,.14);
+    --warn:#E8A33D;
+    --warn-soft:rgba(232,163,61,.14);
+    --num:#5B8DEF;
+    --cat:#E8A33D;
+    --date:#B389F0;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Space Grotesk',sans-serif;
+    min-height:100vh;
+    padding:28px 20px 60px;
+  }
+  .wrap{max-width:1080px;margin:0 auto;}
+
+  /* header */
+  .hdr{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:10px;}
+  .hdr h1{font-size:20px;font-weight:700;margin:0;letter-spacing:.2px;}
+  .hdr .tag{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);border:1px solid var(--border);padding:4px 8px;border-radius:20px;}
+
+  /* upload zone */
+  .drop{
+    border:1.5px dashed var(--border);
+    border-radius:14px;
+    padding:40px 20px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+    background:var(--panel);
+  }
+  .drop:hover, .drop.drag{border-color:var(--accent); background:var(--accent-soft);}
+  .drop .icon{font-family:'JetBrains Mono',monospace; font-size:26px; color:var(--accent); margin-bottom:10px;}
+  .drop .main{font-size:15px;font-weight:600;margin-bottom:4px;}
+  .drop .sub{font-size:12.5px;color:var(--text-dim);}
+  input[type=file]{display:none;}
+
+  .sample-btn{
+    margin-top:14px; background:none; border:1px solid var(--border); color:var(--text-dim);
+    font-family:'JetBrains Mono',monospace; font-size:11px; padding:6px 12px; border-radius:20px; cursor:pointer;
+  }
+  .sample-btn:hover{color:var(--text); border-color:var(--accent);}
+
+  /* sections */
+  .section{margin-top:30px;}
+  .section-title{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px; letter-spacing:1.5px; text-transform:uppercase;
+    color:var(--text-dim); margin-bottom:12px; display:flex; align-items:center; gap:8px;
+  }
+  .section-title .num{color:var(--accent);}
+  .section-title::after{content:"";flex:1;height:1px;background:var(--border);}
+
+  /* log panel */
+  .log{
+    background:#101216; border:1px solid var(--border); border-radius:10px;
+    padding:14px 16px; font-family:'JetBrains Mono',monospace; font-size:12px; line-height:1.9;
+    max-height:220px; overflow-y:auto;
+  }
+  .log .line{color:var(--text-dim);}
+  .log .line b{color:var(--good); font-weight:600;}
+  .log .line .n{color:var(--accent);}
+
+  .stat-row{display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;}
+  .stat-pill{
+    background:var(--panel-2); border:1px solid var(--border); border-radius:8px;
+    padding:8px 12px; font-size:12px; color:var(--text-dim);
+  }
+  .stat-pill b{color:var(--text); font-family:'JetBrains Mono',monospace; font-size:13px;}
+
+  /* variable grid */
+  .var-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:12px;}
+  .var-card{
+    background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px;
+    cursor:pointer; transition:border-color .15s, transform .1s;
+  }
+  .var-card:hover{border-color:var(--accent); transform:translateY(-1px);}
+  .var-card.sel{border-color:var(--accent); background:var(--accent-soft);}
+  .var-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;}
+  .var-name{font-weight:600; font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .type-badge{
+    font-family:'JetBrains Mono',monospace; font-size:9.5px; padding:2px 7px; border-radius:20px;
+    text-transform:uppercase; letter-spacing:.5px; flex:none; margin-left:6px;
+  }
+  .type-numeric{background:rgba(91,141,239,.16); color:var(--num);}
+  .type-categorical{background:rgba(232,163,61,.16); color:var(--cat);}
+  .type-date{background:rgba(179,137,240,.16); color:var(--date);}
+  .var-mini{height:34px; margin:6px 0;}
+  .var-meta{font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-dim); display:flex; justify-content:space-between;}
+  .var-meta .miss{color:var(--warn);}
+
+  /* explorer */
+  .explorer{background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:20px;}
+  .exp-controls{display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:18px;}
+  .field{display:flex; flex-direction:column; gap:6px;}
+  .field label{font-family:'JetBrains Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--text-dim);}
+  select{
+    background:var(--panel-2); color:var(--text); border:1px solid var(--border); border-radius:8px;
+    padding:9px 12px; font-family:'Space Grotesk',sans-serif; font-size:13px; min-width:170px; cursor:pointer;
+  }
+  select:focus{outline:2px solid var(--accent); outline-offset:1px;}
+  .swap-btn{
+    background:var(--panel-2); border:1px solid var(--border); color:var(--text-dim); border-radius:8px;
+    width:38px; height:38px; cursor:pointer; font-size:15px;
+  }
+  .swap-btn:hover{color:var(--accent); border-color:var(--accent);}
+
+  .chart-tabs{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px;}
+  .chart-tab{
+    font-family:'JetBrains Mono',monospace; font-size:11px; padding:7px 13px; border-radius:20px;
+    background:var(--panel-2); border:1px solid var(--border); color:var(--text-dim); cursor:pointer;
+  }
+  .chart-tab.active{background:var(--accent); color:#0d0f13; border-color:var(--accent); font-weight:600;}
+  .chart-tab:hover:not(.active){border-color:var(--accent);}
+
+  .chart-area{background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:16px; min-height:340px;}
+  .insight{
+    margin-top:14px; padding:12px 14px; background:var(--good-soft); border:1px solid rgba(79,209,165,.3);
+    border-radius:8px; font-size:12.5px; color:var(--text); line-height:1.6;
+  }
+  .insight b{color:var(--good);}
+
+  /* heatmap */
+  table.heat{border-collapse:collapse; width:100%; font-family:'JetBrains Mono',monospace; font-size:11px;}
+  table.heat th, table.heat td{border:1px solid var(--border); padding:6px 8px; text-align:center;}
+  table.heat th{color:var(--text-dim); font-weight:500; background:var(--panel);}
+  table.heat td{color:var(--text);}
+
+  .empty-state{text-align:center; color:var(--text-dim); font-size:13px; padding:60px 20px;}
+
+  ::-webkit-scrollbar{width:8px; height:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--border); border-radius:4px;}
+
+  .hidden{display:none !important;}
+  #fileMeta{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-dim); margin-top:10px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <h1>⌁ Banc d'analyse</h1>
+    <div class="tag">nettoyage · variables · relations</div>
+  </div>
+
+  <label class="drop" id="dropZone">
+    <input type="file" id="fileInput" accept=".csv,.tsv,text/csv">
+    <div class="icon">↑</div>
+    <div class="main">Déposez un fichier CSV ici, ou cliquez pour choisir</div>
+    <div class="sub">Le nettoyage (types, espaces, doublons, valeurs manquantes) est automatique</div>
+  </label>
+  <div style="text-align:center;">
+    <button class="sample-btn" id="sampleBtn" type="button">ou charger un jeu de données d'exemple</button>
+  </div>
+  <div id="fileMeta"></div>
+
+  <div id="app" class="hidden">
+
+    <div class="section">
+      <div class="section-title"><span class="num">01</span> Journal de nettoyage</div>
+      <div class="log" id="log"></div>
+      <div class="stat-row" id="statRow"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title"><span class="num">02</span> Variables détectées</div>
+      <div class="var-grid" id="varGrid"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title"><span class="num">03</span> Relation entre deux variables</div>
+      <div class="explorer">
+        <div class="exp-controls">
+          <div class="field">
+            <label>Variable A</label>
+            <select id="varA"></select>
+          </div>
+          <button class="swap-btn" id="swapBtn" title="Inverser">⇄</button>
+          <div class="field">
+            <label>Variable B</label>
+            <select id="varB"></select>
+          </div>
+        </div>
+        <div class="chart-tabs" id="chartTabs"></div>
+        <div class="chart-area" id="chartArea"></div>
+        <div class="insight" id="insight"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ---------- state ----------
+let rawRows = [];
+let columns = [];      // {name, type, values(raw), clean(array), stats}
+let cleanRows = [];
+let selA = null, selB = null;
+let chartType = null;
+let chartInstance = null;
+
+// ---------- upload handling ----------
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const fileMeta = document.getElementById('fileMeta');
+
+dropZone.addEventListener('click', e=>{ if(e.target!==fileInput) fileInput.click(); });
+dropZone.addEventListener('dragover', e=>{e.preventDefault(); dropZone.classList.add('drag');});
+dropZone.addEventListener('dragleave', ()=> dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e=>{
+  e.preventDefault(); dropZone.classList.remove('drag');
+  if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e=>{ if(e.target.files.length) handleFile(e.target.files[0]); });
+
+document.getElementById('sampleBtn').addEventListener('click', ()=>{
+  const sample = generateSampleCSV();
+  fileMeta.textContent = "Jeu de données d'exemple chargé";
+  processCSVText(sample);
+});
+
+function handleFile(file){
+  fileMeta.textContent = file.name + ' · ' + (file.size/1024).toFixed(1) + ' Ko';
+  const reader = new FileReader();
+  reader.onload = e => processCSVText(e.target.result);
+  reader.readAsText(file);
+}
+
+function generateSampleCSV(){
+  const villes = ['Paris','Lyon','Marseille','Lille','Nantes'];
+  const segments = ['Particulier','Entreprise'];
+  let rows = ['age,ville,segment,revenu_mensuel,anciennete_mois,satisfaction'];
+  for(let i=0;i<180;i++){
+    const age = Math.round(20 + Math.random()*45);
+    const ville = villes[Math.floor(Math.random()*villes.length)];
+    const seg = segments[Math.floor(Math.random()*segments.length)];
+    const base = seg==='Entreprise' ? 3800 : 2200;
+    const revenu = Math.round(base + age*22 + (Math.random()-0.5)*900);
+    const anciennete = Math.round(Math.random()*120);
+    const satisfaction = Math.max(1, Math.min(10, Math.round(5 + (revenu-3000)/1200 + (Math.random()-0.5)*4)));
+    const missing = Math.random() < 0.05 ? '' : revenu;
+    rows.push([age, ville, seg, missing, anciennete, satisfaction].join(','));
+  }
+  return rows.join(String.fromCharCode(10));
+}
+
+// ---------- parsing + cleaning ----------
+function processCSVText(text){
+  const parsed = Papa.parse(text.trim(), {header:true, skipEmptyLines:'greedy'});
+  rawRows = parsed.data;
+  const originalCols = parsed.meta.fields || [];
+  const log = [];
+
+  // 1. trim header names, drop fully-empty columns
+  let colNames = originalCols.map(c=>c.trim());
+  const dupHeaderCount = originalCols.length - new Set(colNames).size;
+
+  // build raw column value arrays
+  let colValues = {};
+  colNames.forEach((c,i)=>{ colValues[c] = rawRows.map(r=>{
+    let v = r[originalCols[i]];
+    if(v===undefined || v===null) return '';
+    if(typeof v === 'string') v = v.trim();
+    return v;
+  });});
+
+  // drop columns fully empty
+  const emptyCols = colNames.filter(c => colValues[c].every(v=>v===''));
+  emptyCols.forEach(c=>{ delete colValues[c]; });
+  colNames = colNames.filter(c=>!emptyCols.includes(c));
+
+  // 2. drop rows fully empty across kept columns
+  const nRowsBefore = rawRows.length;
+  const keepRowIdx = [];
+  for(let i=0;i<nRowsBefore;i++){
+    const allEmpty = colNames.every(c => colValues[c][i]==='');
+    if(!allEmpty) keepRowIdx.push(i);
+  }
+  colNames.forEach(c=>{ colValues[c] = keepRowIdx.map(i=>colValues[c][i]); });
+  const emptyRowsRemoved = nRowsBefore - keepRowIdx.length;
+
+  // 3. detect duplicate rows (exact match across all columns), remove
+  const rowCount = keepRowIdx.length;
+  const rowKeys = [];
+  for(let i=0;i<rowCount;i++){
+    rowKeys.push(colNames.map(c=>colValues[c][i]).join('␟'));
+  }
+  const seen = new Set();
+  const dupIdx = new Set();
+  rowKeys.forEach((k,i)=>{ if(seen.has(k)) dupIdx.add(i); else seen.add(k); });
+  const finalRowIdx = [];
+  for(let i=0;i<rowCount;i++) if(!dupIdx.has(i)) finalRowIdx.push(i);
+  colNames.forEach(c=>{ colValues[c] = finalRowIdx.map(i=>colValues[c][i]); });
+  const duplicatesRemoved = dupIdx.size;
+
+  // 4. detect type per column + convert
+  columns = colNames.map(name=>{
+    const rawVals = colValues[name];
+    const nonEmpty = rawVals.filter(v=>v!=='');
+    const missing = rawVals.length - nonEmpty.length;
+
+    const numericLike = nonEmpty.filter(v => v!=='' && !isNaN(v.replace(',','.')) && v.replace(',','.').trim()!=='').length;
+    const dateLike = nonEmpty.filter(v => isDateLike(v)).length;
+
+    let type;
+    if(nonEmpty.length>0 && numericLike/nonEmpty.length >= 0.85) type='numeric';
+    else if(nonEmpty.length>0 && dateLike/nonEmpty.length >= 0.85) type='date';
+    else type='categorical';
+
+    let clean;
+    if(type==='numeric'){
+      clean = rawVals.map(v => v==='' ? null : parseFloat(v.replace(',','.')));
+    } else if(type==='date'){
+      clean = rawVals.map(v => v==='' ? null : new Date(v));
+    } else {
+      clean = rawVals.map(v => v==='' ? null : String(v));
+    }
+
+    return {name, type, raw:rawVals, clean, missing};
+  });
+
+  // stats
+  columns.forEach(col=>{
+    const vals = col.clean.filter(v=>v!==null && v!==undefined && !(col.type==='date' && isNaN(v)));
+    if(col.type==='numeric'){
+      const sorted = [...vals].sort((a,b)=>a-b);
+      const mean = vals.reduce((a,b)=>a+b,0)/(vals.length||1);
+      const median = sorted.length ? (sorted.length%2 ? sorted[(sorted.length-1)/2] : (sorted[sorted.length/2-1]+sorted[sorted.length/2])/2) : 0;
+      const std = Math.sqrt(vals.reduce((a,b)=>a+Math.pow(b-mean,2),0)/(vals.length||1));
+      col.stats = {min:sorted[0], max:sorted[sorted.length-1], mean, median, std, n:vals.length};
+    } else if(col.type==='categorical'){
+      const counts = {};
+      vals.forEach(v=>{ counts[v]=(counts[v]||0)+1; });
+      const top = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+      col.stats = {unique:top.length, top};
+    } else {
+      const times = vals.map(v=>v.getTime()).sort((a,b)=>a-b);
+      col.stats = {min:times[0]? new Date(times[0]):null, max:times.length? new Date(times[times.length-1]):null, n:vals.length};
+    }
+  });
+
+  cleanRows = finalRowIdx.map((_,i)=>{
+    let r = {};
+    columns.forEach(c=> r[c.name] = c.clean[i]);
+    return r;
+  });
+
+  // build log
+  log.push({text:`${nRowsBefore} lignes lues, ${originalCols.length} colonnes détectées`, kind:'n'});
+  if(emptyCols.length) log.push({text:`${emptyCols.length} colonne(s) entièrement vide(s) supprimée(s) : ${emptyCols.join(', ')}`, kind:'warn'});
+  if(dupHeaderCount>0) log.push({text:`${dupHeaderCount} en-tête(s) en double détecté(s)`, kind:'warn'});
+  if(emptyRowsRemoved) log.push({text:`${emptyRowsRemoved} ligne(s) entièrement vide(s) supprimée(s)`, kind:'warn'});
+  if(duplicatesRemoved) log.push({text:`${duplicatesRemoved} ligne(s) en double supprimée(s)`, kind:'warn'});
+  log.push({text:`Espaces superflus retirés sur toutes les cellules texte`, kind:'good'});
+  columns.forEach(c=>{
+    if(c.missing>0){
+      log.push({text:`« ${c.name} » : ${c.missing} valeur(s) manquante(s) conservée(s) (exclues des statistiques)`, kind:'warn'});
+    }
+  });
+  log.push({text:`Types détectés automatiquement : ${columns.filter(c=>c.type==='numeric').length} numérique(s), ${columns.filter(c=>c.type==='categorical').length} catégorielle(s), ${columns.filter(c=>c.type==='date').length} date(s)`, kind:'good'});
+  log.push({text:`${cleanRows.length} lignes propres × ${columns.length} colonnes prêtes à l'analyse`, kind:'good'});
+
+  renderLog(log);
+  renderStatRow(nRowsBefore, cleanRows.length, columns.length, emptyRowsRemoved+duplicatesRemoved);
+  renderVarGrid();
+  renderSelectors();
+
+  document.getElementById('app').classList.remove('hidden');
+}
+
+function isDateLike(v){
+  if(typeof v !== 'string') return false;
+  if(/^\d{4}-\d{1,2}-\d{1,2}/.test(v)) return true;
+  if(/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(v)) return true;
+  return false;
+}
+
+// ---------- render: log ----------
+function renderLog(entries){
+  const el = document.getElementById('log');
+  el.innerHTML = entries.map(e=>{
+    const cls = e.kind==='good' ? '<b>' : (e.kind==='warn' ? '<span style="color:var(--warn)">' : '<span class="n">');
+    const clsEnd = e.kind==='good' ? '</b>' : '</span>';
+    return `<div class="line">› ${e.text}</div>`;
+  }).join('');
+}
+
+function renderStatRow(before, after, nCols, removed){
+  const el = document.getElementById('statRow');
+  el.innerHTML = `
+    <div class="stat-pill">Lignes initiales <b>${before}</b></div>
+    <div class="stat-pill">Lignes nettoyées <b>${after}</b></div>
+    <div class="stat-pill">Lignes retirées <b>${removed}</b></div>
+    <div class="stat-pill">Variables <b>${nCols}</b></div>
+  `;
+}
+
+// ---------- render: variable cards ----------
+function renderVarGrid(){
+  const grid = document.getElementById('varGrid');
+  grid.innerHTML = '';
+  columns.forEach(col=>{
+    const card = document.createElement('div');
+    card.className = 'var-card';
+    card.dataset.name = col.name;
+
+    const badgeClass = 'type-'+col.type;
+    const badgeLabel = col.type==='numeric'?'numérique':(col.type==='categorical'?'catégorielle':'date');
+    const missPct = ((col.missing/col.raw.length)*100).toFixed(0);
+
+    let metaRight = '';
+    if(col.type==='numeric'){
+      metaRight = `moy ${fmtNum(col.stats.mean)}`;
+    } else if(col.type==='categorical'){
+      metaRight = `${col.stats.unique} modalités`;
+    } else {
+      metaRight = `${col.stats.n} dates`;
+    }
+
+    card.innerHTML = `
+      <div class="var-top">
+        <div class="var-name" title="${col.name}">${col.name}</div>
+        <div class="type-badge ${badgeClass}">${badgeLabel}</div>
+      </div>
+      <div class="var-mini"><svg width="100%" height="34" viewBox="0 0 200 34" preserveAspectRatio="none"></svg></div>
+      <div class="var-meta">
+        <span>${metaRight}</span>
+        <span class="${col.missing>0?'miss':''}">${col.missing>0? missPct+'% manq.':'complet'}</span>
+      </div>
+    `;
+    drawMiniViz(card.querySelector('svg'), col);
+    card.addEventListener('click', ()=>{
+      document.getElementById('varA').value = col.name;
+      updateVarB();
+      onSelectionChange();
+      document.querySelector('.explorer').scrollIntoView({behavior:'smooth', block:'center'});
+    });
+    grid.appendChild(card);
+  });
+}
+
+function drawMiniViz(svg, col){
+  const ns = 'http://www.w3.org/2000/svg';
+  if(col.type==='numeric'){
+    const vals = col.clean.filter(v=>v!==null);
+    if(!vals.length) return;
+    const bins = 12;
+    const min = col.stats.min, max = col.stats.max;
+    const range = (max-min)||1;
+    const counts = new Array(bins).fill(0);
+    vals.forEach(v=>{
+      let idx = Math.floor(((v-min)/range)*bins);
+      if(idx>=bins) idx = bins-1; if(idx<0) idx=0;
+      counts[idx]++;
+    });
+    const maxC = Math.max(...counts);
+    const w = 200/bins;
+    counts.forEach((c,i)=>{
+      const h = maxC? (c/maxC)*30 : 0;
+      const rect = document.createElementNS(ns,'rect');
+      rect.setAttribute('x', i*w+1);
+      rect.setAttribute('y', 34-h);
+      rect.setAttribute('width', Math.max(w-2,1));
+      rect.setAttribute('height', h);
+      rect.setAttribute('fill', 'var(--num)');
+      rect.setAttribute('opacity', '0.75');
+      svg.appendChild(rect);
+    });
+  } else if(col.type==='categorical'){
+    const top = col.stats.top.slice(0,6);
+    const total = top.reduce((a,b)=>a+b[1],0) || 1;
+    let x = 0;
+    const colors = ['#E8A33D','#E8A33Dcc','#E8A33Daa','#E8A33D88','#E8A33D66','#E8A33D44'];
+    top.forEach((t,i)=>{
+      const w = (t[1]/total)*198;
+      const rect = document.createElementNS(ns,'rect');
+      rect.setAttribute('x', x); rect.setAttribute('y', 10);
+      rect.setAttribute('width', w); rect.setAttribute('height', 14);
+      rect.setAttribute('fill', colors[i%colors.length]);
+      svg.appendChild(rect);
+      x += w;
+    });
+  } else {
+    const line = document.createElementNS(ns,'line');
+    line.setAttribute('x1',4); line.setAttribute('x2',196);
+    line.setAttribute('y1',17); line.setAttribute('y2',17);
+    line.setAttribute('stroke','var(--date)'); line.setAttribute('stroke-width',2);
+    svg.appendChild(line);
+    [4,196].forEach(x=>{
+      const c = document.createElementNS(ns,'circle');
+      c.setAttribute('cx',x); c.setAttribute('cy',17); c.setAttribute('r',3); c.setAttribute('fill','var(--date)');
+      svg.appendChild(c);
+    });
+  }
+}
+
+function fmtNum(n){
+  if(n===undefined||n===null||isNaN(n)) return '—';
+  if(Math.abs(n)>=1000) return n.toLocaleString('fr-FR', {maximumFractionDigits:0});
+  return n.toLocaleString('fr-FR', {maximumFractionDigits:2});
+}
+
+// ---------- selectors ----------
+function renderSelectors(){
+  const a = document.getElementById('varA');
+  const b = document.getElementById('varB');
+  a.innerHTML = columns.map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
+  updateVarB();
+  a.value = columns[0]?.name;
+  b.value = columns[1] ? columns[1].name : columns[0]?.name;
+  a.addEventListener('change', ()=>{ updateVarB(); onSelectionChange(); });
+  b.addEventListener('change', onSelectionChange);
+  document.getElementById('swapBtn').addEventListener('click', ()=>{
+    const va = a.value, vb = b.value;
+    a.value = vb; updateVarB(); b.value = va;
+    onSelectionChange();
+  });
+  onSelectionChange();
+}
+
+function updateVarB(){
+  const a = document.getElementById('varA');
+  const b = document.getElementById('varB');
+  const prev = b.value;
+  b.innerHTML = columns.map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
+  if(prev && columns.some(c=>c.name===prev)) b.value = prev;
+}
+
+function getCol(name){ return columns.find(c=>c.name===name); }
+
+function onSelectionChange(){
+  selA = getCol(document.getElementById('varA').value);
+  selB = getCol(document.getElementById('varB').value);
+  const options = chartOptionsFor(selA, selB);
+  chartType = options[0].key;
+  renderChartTabs(options);
+  renderChart();
+}
+
+// ---------- chart type logic ----------
+function chartOptionsFor(a, b){
+  if(a.name === b.name){
+    if(a.type==='numeric') return [{key:'hist', label:'Histogramme'}];
+    if(a.type==='categorical') return [{key:'bar_counts', label:'Effectifs'}];
+    return [{key:'hist_date', label:'Fréquence temporelle'}];
+  }
+  const t = [a.type, b.type].sort().join('-');
+  if(t==='numeric-numeric') return [{key:'scatter', label:'Nuage de points'}, {key:'line_sorted', label:'Courbe (trié)'}];
+  if(t==='categorical-numeric'||t==='date-numeric') {
+    if(a.type==='date'||b.type==='date') return [{key:'line_time', label:'Évolution temporelle'}];
+    return [{key:'bar_mean', label:'Moyenne par catégorie'}, {key:'box_like', label:'Min / Moy / Max'}];
+  }
+  if(t==='categorical-categorical') return [{key:'bar_stacked', label:'Barres empilées'}, {key:'heatmap', label:'Tableau croisé (heatmap)'}];
+  if(t==='categorical-date'||t==='date-date') return [{key:'line_time', label:'Évolution temporelle'}];
+  return [{key:'bar_stacked', label:'Barres'}];
+}
+
+function renderChartTabs(options){
+  const el = document.getElementById('chartTabs');
+  el.innerHTML = options.map(o=>`<button class="chart-tab ${o.key===chartType?'active':''}" data-key="${o.key}">${o.label}</button>`).join('');
+  el.querySelectorAll('.chart-tab').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      chartType = btn.dataset.key;
+      el.querySelectorAll('.chart-tab').forEach(x=>x.classList.remove('active'));
+      btn.classList.add('active');
+      renderChart();
+    });
+  });
+}
+
+// ---------- chart rendering ----------
+function renderChart(){
+  const area = document.getElementById('chartArea');
+  area.innerHTML = '';
+  const insight = document.getElementById('insight');
+  insight.innerHTML = '';
+
+  if(chartInstance){ chartInstance.destroy(); chartInstance = null; }
+
+  if(chartType === 'heatmap'){
+    renderHeatmap(area);
+    return;
+  }
+
+  const canvas = document.createElement('canvas');
+  area.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+
+  const styleBase = {
+    color:'#ECEAE4',
+    font:{family:"'Space Grotesk', sans-serif", size:11}
+  };
+  Chart.defaults.color = '#8B909B';
+  Chart.defaults.borderColor = '#2B2F3A';
+  Chart.defaults.font.family = "'Space Grotesk', sans-serif";
+
+  if(chartType==='hist'){
+    const {labels, counts} = histogram(selA.clean.filter(v=>v!==null), 14);
+    chartInstance = new Chart(ctx, {type:'bar', data:{labels, datasets:[{label:selA.name, data:counts, backgroundColor:'#5B8DEF'}]},
+      options:baseOpts(selA.name,'Effectif')});
+    insight.innerHTML = `<b>${selA.name}</b> — moyenne ${fmtNum(selA.stats.mean)}, médiane ${fmtNum(selA.stats.median)}, écart-type ${fmtNum(selA.stats.std)}.`;
+  }
+  else if(chartType==='bar_counts'){
+    const top = selA.stats.top.slice(0,12);
+    chartInstance = new Chart(ctx, {type:'bar', data:{labels:top.map(t=>t[0]), datasets:[{label:selA.name, data:top.map(t=>t[1]), backgroundColor:'#E8A33D'}]},
+      options:baseOpts(selA.name,'Effectif')});
+    insight.innerHTML = `<b>${selA.name}</b> comporte ${selA.stats.unique} modalités. La plus fréquente : <b>${top[0][0]}</b> (${top[0][1]} occurrences).`;
+  }
+  else if(chartType==='hist_date'){
+    const vals = selA.clean.filter(v=>v!==null).sort((a,b)=>a-b);
+    const byMonth = {};
+    vals.forEach(d=>{ const k = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); byMonth[k]=(byMonth[k]||0)+1; });
+    const labels = Object.keys(byMonth).sort();
+    chartInstance = new Chart(ctx, {type:'bar', data:{labels, datasets:[{label:selA.name, data:labels.map(l=>byMonth[l]), backgroundColor:'#B389F0'}]},
+      options:baseOpts('Période','Effectif')});
+  }
+  else if(chartType==='scatter'){
+    const pts = [];
+    cleanRows.forEach(r=>{ if(r[selA.name]!==null && r[selB.name]!==null) pts.push({x:r[selA.name], y:r[selB.name]}); });
+    chartInstance = new Chart(ctx, {type:'scatter', data:{datasets:[{label:`${selA.name} vs ${selB.name}`, data:pts, backgroundColor:'#5B8DEFaa'}]},
+      options:baseOpts(selA.name, selB.name)});
+    const r = pearson(pts.map(p=>p.x), pts.map(p=>p.y));
+    insight.innerHTML = `Corrélation linéaire (Pearson) entre <b>${selA.name}</b> et <b>${selB.name}</b> : <b>${r.toFixed(2)}</b> — ${corrText(r)}`;
+  }
+  else if(chartType==='line_sorted'){
+    const pts = [];
+    cleanRows.forEach(r=>{ if(r[selA.name]!==null && r[selB.name]!==null) pts.push({x:r[selA.name], y:r[selB.name]}); });
+    pts.sort((a,b)=>a.x-b.x);
+    chartInstance = new Chart(ctx, {type:'line', data:{datasets:[{label:`${selB.name} (trié par ${selA.name})`, data:pts, borderColor:'#4FD1A5', backgroundColor:'#4FD1A533', tension:.25, pointRadius:2}]},
+      options:baseOpts(selA.name, selB.name)});
+  }
+  else if(chartType==='bar_mean'){
+    const catCol = selA.type==='categorical'?selA:selB;
+    const numCol = selA.type==='numeric'?selA:selB;
+    const groups = {};
+    cleanRows.forEach(r=>{
+      const k = r[catCol.name], v = r[numCol.name];
+      if(k===null||v===null) return;
+      if(!groups[k]) groups[k] = [];
+      groups[k].push(v);
+    });
+    const labels = Object.keys(groups);
+    const means = labels.map(k => groups[k].reduce((a,b)=>a+b,0)/groups[k].length);
+    chartInstance = new Chart(ctx, {type:'bar', data:{labels, datasets:[{label:`Moyenne de ${numCol.name}`, data:means, backgroundColor:'#5B8DEF'}]},
+      options:baseOpts(catCol.name, numCol.name)});
+    const maxI = means.indexOf(Math.max(...means));
+    insight.innerHTML = `La modalité <b>${labels[maxI]}</b> a la moyenne de <b>${numCol.name}</b> la plus élevée (${fmtNum(means[maxI])}).`;
+  }
+  else if(chartType==='box_like'){
+    const catCol = selA.type==='categorical'?selA:selB;
+    const numCol = selA.type==='numeric'?selA:selB;
+    const groups = {};
+    cleanRows.forEach(r=>{
+      const k = r[catCol.name], v = r[numCol.name];
+      if(k===null||v===null) return;
+      if(!groups[k]) groups[k] = [];
+      groups[k].push(v);
+    });
+    const labels = Object.keys(groups);
+    const mins = labels.map(k=>Math.min(...groups[k]));
+    const maxs = labels.map(k=>Math.max(...groups[k]));
+    const means = labels.map(k=>groups[k].reduce((a,b)=>a+b,0)/groups[k].length);
+    chartInstance = new Chart(ctx, {type:'bar', data:{labels,
+      datasets:[
+        {label:'Min', data:mins, backgroundColor:'#2B2F3A'},
+        {label:'Moyenne', data:means, backgroundColor:'#5B8DEF'},
+        {label:'Max', data:maxs, backgroundColor:'#E8A33D55'}
+      ]}, options:{...baseOpts(catCol.name, numCol.name)}});
+  }
+  else if(chartType==='line_time'){
+    const dateCol = selA.type==='date'?selA:selB;
+    const otherCol = selA.type==='date'?selB:selA;
+    let pts = [];
+    cleanRows.forEach(r=>{
+      const d = r[dateCol.name], v = r[otherCol.name];
+      if(d===null||v===null) return;
+      pts.push({x:d, y: otherCol.type==='numeric'? v : 1, cat: otherCol.type==='categorical'? v : null});
+    });
+    if(otherCol.type==='numeric'){
+      pts.sort((a,b)=>a.x-b.x);
+      chartInstance = new Chart(ctx, {type:'line', data:{datasets:[{label:otherCol.name, data:pts.map(p=>({x:p.x,y:p.y})), borderColor:'#4FD1A5', backgroundColor:'#4FD1A533', tension:.2, pointRadius:2}]},
+        options:{...baseOpts('Date', otherCol.name), scales:{x:{type:'time' in Chart? undefined: undefined}}}});
+    } else {
+      const byMonth = {};
+      pts.forEach(p=>{ const k = p.x.getFullYear()+'-'+String(p.x.getMonth()+1).padStart(2,'0'); byMonth[k]=(byMonth[k]||0)+1; });
+      const labels = Object.keys(byMonth).sort();
+      chartInstance = new Chart(ctx, {type:'bar', data:{labels, datasets:[{label:otherCol.name, data:labels.map(l=>byMonth[l]), backgroundColor:'#B389F0'}]},
+        options:baseOpts('Période','Effectif')});
+    }
+  }
+  else if(chartType==='bar_stacked'){
+    const {labelsX, labelsY, matrix} = crossTab(selA, selB);
+    const datasets = labelsY.map((ly,j)=>({
+      label:String(ly),
+      data:labelsX.map((lx,i)=>matrix[i][j]),
+      backgroundColor: palette(j)
+    }));
+    chartInstance = new Chart(ctx, {type:'bar', data:{labels:labelsX, datasets},
+      options:{...baseOpts(selA.name,'Effectif'), scales:{x:{stacked:true, grid:{display:false}}, y:{stacked:true, grid:{color:'#2B2F3A'}}}}});
+  }
+}
+
+function baseOpts(xLabel, yLabel){
+  return {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:'#8B909B'}}},
+    scales:{
+      x:{title:{display:true, text:xLabel, color:'#8B909B'}, grid:{color:'#2B2F3A'}, ticks:{color:'#8B909B'}},
+      y:{title:{display:true, text:yLabel, color:'#8B909B'}, grid:{color:'#2B2F3A'}, ticks:{color:'#8B909B'}}
+    }
+  };
+}
+
+function palette(i){
+  const p = ['#5B8DEF','#E8A33D','#4FD1A5','#B389F0','#EF5B7E','#5BEFDB'];
+  return p[i % p.length] + 'cc';
+}
+
+function histogram(vals, bins){
+  if(!vals.length) return {labels:[], counts:[]};
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const range = (max-min)||1;
+  const counts = new Array(bins).fill(0);
+  vals.forEach(v=>{
+    let idx = Math.floor(((v-min)/range)*bins);
+    if(idx>=bins) idx=bins-1; if(idx<0) idx=0;
+    counts[idx]++;
+  });
+  const labels = counts.map((_,i)=> fmtNum(min+i*range/bins));
+  return {labels, counts};
+}
+
+function crossTab(a, b){
+  const labelsX = a.type==='categorical' ? a.stats.top.map(t=>t[0]).slice(0,10) : [...new Set(a.clean.filter(v=>v!==null))];
+  const labelsY = b.type==='categorical' ? b.stats.top.map(t=>t[0]).slice(0,6) : [...new Set(b.clean.filter(v=>v!==null))];
+  const matrix = labelsX.map(()=> labelsY.map(()=>0));
+  cleanRows.forEach(r=>{
+    const va = r[a.name], vb = r[b.name];
+    const i = labelsX.indexOf(va), j = labelsY.indexOf(vb);
+    if(i>=0 && j>=0) matrix[i][j]++;
+  });
+  return {labelsX, labelsY, matrix};
+}
+
+function renderHeatmap(area){
+  const {labelsX, labelsY, matrix} = crossTab(selA, selB);
+  const max = Math.max(1, ...matrix.flat());
+  let html = '<table class="heat"><thead><tr><th></th>' + labelsY.map(l=>`<th>${l}</th>`).join('') + '</tr></thead><tbody>';
+  labelsX.forEach((lx,i)=>{
+    html += `<tr><th>${lx}</th>` + labelsY.map((ly,j)=>{
+      const v = matrix[i][j];
+      const alpha = (v/max*0.85+0.05).toFixed(2);
+      return `<td style="background:rgba(91,141,239,${alpha})">${v}</td>`;
+    }).join('') + '</tr>';
+  });
+  html += '</tbody></table>';
+  area.innerHTML = html;
+  document.getElementById('insight').innerHTML = `Tableau croisé des effectifs entre <b>${selA.name}</b> et <b>${selB.name}</b>. Les cellules plus foncées indiquent une combinaison plus fréquente.`;
+}
+
+function pearson(xs, ys){
+  const n = xs.length;
+  if(n<2) return 0;
+  const mx = xs.reduce((a,b)=>a+b,0)/n, my = ys.reduce((a,b)=>a+b,0)/n;
+  let num=0, dx=0, dy=0;
+  for(let i=0;i<n;i++){ num += (xs[i]-mx)*(ys[i]-my); dx += (xs[i]-mx)**2; dy += (ys[i]-my)**2; }
+  const denom = Math.sqrt(dx*dy);
+  return denom===0 ? 0 : num/denom;
+}
+
+function corrText(r){
+  const a = Math.abs(r);
+  if(a<0.1) return "quasiment aucune relation linéaire.";
+  if(a<0.3) return "relation linéaire faible.";
+  if(a<0.5) return "relation linéaire modérée.";
+  if(a<0.7) return "relation linéaire assez forte.";
+  return "relation linéaire forte" + (r<0 ? " (négative : quand l'une augmente, l'autre diminue)." : " (positive : les deux augmentent ensemble).");
+}
+</script>
+</body>
+</html>
